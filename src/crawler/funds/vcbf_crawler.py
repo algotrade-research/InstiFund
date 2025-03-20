@@ -7,6 +7,7 @@ import json
 import argparse
 import yaml
 from tqdm import tqdm
+import pandas as pd
 
 
 class VCBFCrawler():
@@ -15,6 +16,9 @@ class VCBFCrawler():
     # VCBF fund crawler
     VCBF_FUNDS = ["VCBF-TBF", "VCBF-MGF", "VCBF-FIF", "VCBF-BCF"]
     VCBF_URL = "https://www.vcbf.com/"
+    DOWNLOAD_DIR = "downloaded"
+    EXTRACT_DIR = "extracted"
+    SHEET_NAME = "BCDanhMucDauTu_06029"
 
     def __init__(self):
         with open("../../../config/config.yaml", "r") as f:
@@ -67,12 +71,15 @@ class VCBFCrawler():
         with open(os.path.join(save_dir, "VCBF.json"), "r", encoding="utf-8") as f:
             files = json.load(f)
 
+        if not os.path.exists(f"{save_dir}/{self.DOWNLOAD_DIR}"):
+            os.makedirs(f"{save_dir}/{self.DOWNLOAD_DIR}")
+
         for file in tqdm(files):
             title = file["title"].replace("/", "-")
             download_link = self.VCBF_URL + file["download_link"]
             file_name = title + ".xlsx"
             response = requests.get(download_link)
-            with open(os.path.abspath(save_dir + '/' + file_name), "wb") as f:
+            with open(os.path.abspath(f"{save_dir}/{self.DOWNLOAD_DIR}/{file_name}"), "wb") as f:
                 f.write(response.content)
             time.sleep(self.COOL_DOWN)
 
@@ -81,13 +88,79 @@ class VCBFCrawler():
     def get_financial_statements(self, save_dir):
         self.get_financial_statement_links(save_dir)
         self.download_files(save_dir)
+        self.extract_all_data(save_dir)
+
+    def extract_all_data(self, save_dir):
+        for file in os.listdir(f"{save_dir}/{self.DOWNLOAD_DIR}"):
+            if file.endswith(".xlsx"):
+                print(f"Extracting data from {file}...")
+                try:
+                    self.extract_data(f"{save_dir}/{self.DOWNLOAD_DIR}"
+                                      "/{file}",
+                                      f"{save_dir}/{self.EXTRACT_DIR}")
+                except Exception as e:
+                    print(f"Failed to extract data from {file}: {
+                        e}")
+        print("Extracted all data")
+
+    def extract_data(self, file, save_dir):
+        df = pd.read_excel(file, sheet_name=self.SHEET_NAME)
+
+        # Extract all rows containing the specified text in any column
+        keyword = "STT"
+        matches = df[df.apply(lambda row: row.astype(str).str.contains(
+            keyword, case=False, na=False).any(), axis=1)]
+
+        # Display the extracted rows
+        columns = []
+        for i in range(len(df.columns)):
+            columns.append(df.iloc[matches.index[0], i])
+        print(columns)
+
+        keyword = "CỔ PHIẾU NIÊM YẾT"
+        matches = df[df.apply(lambda row: row.astype(str).str.contains(
+            keyword, case=False, na=False).any(), axis=1)]
+
+        start_row = matches.index[0] + 2
+
+        # Extract all rows under the specified section until an empty row or a new section is detected
+        section_data = []
+        for i in range(start_row, len(df)):
+            row = df.iloc[i]
+            # Stop if we encounter an empty row or a new section header
+            if row.isna().iloc[0] or "TOTAL" in str(row.iloc[1]).upper():
+                break
+            section_data.append(row)
+
+        if section_data == []:
+            raise "No data found in the specified section"
+
+        # Convert the extracted data to a DataFrame for better readability
+        section_df = pd.DataFrame(section_data)
+        section_df.reset_index(drop=True, inplace=True)
+        section_df.columns = columns
+
+        # keep column contain "Category" or "Value" or "total asset"
+        section_df = section_df.loc[:, section_df.columns.str.contains(
+            'Category|Value|total asset', case=False, na=False)]
+        section_df = section_df.dropna()
+        section_df.columns = ['Category', 'Value', 'Total Asset Ratio']
+
+        # Display the extracted section
+        print(section_df.head())
+        print(section_df.shape)
+
+        # save to csv
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        section_df.to_csv(f"{save_dir}/{file.split("/")[-1]}.csv", index=False)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--save_dir", type=str, default=".")
     parser.add_argument("--operation", type=str,
-                        default="get_financial_statements")
+                        default="all")
     args = parser.parse_args()
 
     crawler = VCBFCrawler()
@@ -98,9 +171,9 @@ if __name__ == "__main__":
         crawler.get_financial_statement_links(args.save_dir)
     elif args.operation == "download_files":
         crawler.download_files(args.save_dir)
-    elif args.operation == "get_financial_statements":
+    elif args.operation == "all":
         crawler.get_financial_statements(args.save_dir)
-    elif args.operation == "extract_data":
-        crawler.extract_data(args.save_dir)
+    elif args.operation == "extract_all_data":
+        crawler.extract_all_data(args.save_dir)
     else:
         print("Invalid operation")
