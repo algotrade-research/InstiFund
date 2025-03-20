@@ -95,8 +95,7 @@ class VCBFCrawler():
             if file.endswith(".xlsx"):
                 print(f"Extracting data from {file}...")
                 try:
-                    self.extract_data(f"{save_dir}/{self.DOWNLOAD_DIR}"
-                                      "/{file}",
+                    self.extract_data(f"{save_dir}/{self.DOWNLOAD_DIR}/{file}",
                                       f"{save_dir}/{self.EXTRACT_DIR}")
                 except Exception as e:
                     print(f"Failed to extract data from {file}: {
@@ -173,7 +172,7 @@ if __name__ == "__main__":
         crawler.download_files(args.save_dir)
     elif args.operation == "all":
         crawler.get_financial_statements(args.save_dir)
-    elif args.operation == "extract_all_data":
+    elif args.operation == "extract_data":
         crawler.extract_all_data(args.save_dir)
     else:
         print("Invalid operation")
