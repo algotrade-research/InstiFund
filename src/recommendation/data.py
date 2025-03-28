@@ -1,15 +1,37 @@
 from src.settings import DATA_PATH
 import pandas as pd
 from typing import List
+import logging
+import logging.config
+import os
 
-PYTHONPATH = '..'
+# Load logging configuration
+logging.config.fileConfig(os.path.join(
+    os.path.dirname(__file__), "../../config/logging.conf"))
+logger = logging.getLogger("my_logger")
 
-# temporary for VCBF funds
-FUND_DF = pd.read_json(DATA_PATH + "/VCBF/fund_portfolios.csv")
+# Temporary for VCBF funds
+try:
+    logger.info("Loading fund portfolios data from JSON file.")
+    path = os.path.join(DATA_PATH, "VCBF/fund_portfolios.csv")
+    FUND_DF = pd.read_csv(path)
+    FUND_DF["Date"] = pd.to_datetime(FUND_DF["Date"], format="%Y-%m-%d")
+    logger.info(
+        f"Fund portfolios data loaded successfully with {len(FUND_DF)} rows.")
+except Exception as e:
+    logger.error(f"Failed to load fund portfolios data: {e}")
+    FUND_DF = pd.DataFrame()  # Fallback to an empty DataFrame
 
 
 def get_stocks_list() -> List[str]:
     """
     Get the list of stock symbols
     """
-    return FUND_DF["Category"].unique().tolist()
+    try:
+        logger.info("Fetching the list of stock symbols.")
+        stock_list = FUND_DF["Category"].unique().tolist()
+        logger.info(f"Retrieved {len(stock_list)} unique stock symbols.")
+        return stock_list
+    except KeyError as e:
+        logger.error(f"Failed to fetch stock symbols: {e}")
+        return []

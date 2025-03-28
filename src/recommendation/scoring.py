@@ -1,5 +1,5 @@
 from src.recommendation.funds import InstitutionalScoring
-from typing import List
+from typing import List, Tuple
 import pandas as pd
 
 
@@ -10,24 +10,24 @@ class StocksRanking:
         self.symbols = symbols
 
     def get_all_scores(self) -> pd.DataFrame:
-        df = pd.DataFrame()
+        df_list = []  # Use a list to collect rows
         for symbol in self.symbols:
             (fund_net_buying, number_fund_holdings,
              net_fund_change) = InstitutionalScoring(
                 self.month, self.year, symbol).get_scores()
-            df = df.append({"symbol": symbol,
+            df_list.append({"symbol": symbol,
                             "fund_net_buying": fund_net_buying,
                             "number_fund_holdings": number_fund_holdings,
-                            "net_fund_change": net_fund_change},
-                           ignore_index=True)
-        return df
+                            "net_fund_change": net_fund_change})
+        # Use pd.DataFrame to create a DataFrame from the list of rows
+        return pd.DataFrame(df_list)
 
     def normalize(self, df: pd.DataFrame, columns: List[str]) -> None:
         for column in columns:
             df[column] = (df[column] - df[column].min()) / \
                          (df[column].max() - df[column].min())
 
-    def get_ranking(self) -> List[str]:
+    def get_ranking(self) -> List[Tuple[str, float]]:
         df = self.get_all_scores()
         # Normalize all required columns at once
         self.normalize(
@@ -37,7 +37,10 @@ class StocksRanking:
             0.35 * df["number_fund_holdings"] + 0.2 * df["net_fund_change"]
         # Sort by score and return the symbols
         df = df.sort_values(by=["score"], ascending=False)
-        return df["symbol"].tolist()
+        df = df.reset_index(drop=True)
+        # Return the top 3 symbols with their scores
+        ranking = df[["symbol", "score"]].values.tolist()
+        return ranking
 
     def recommend(self) -> List[str]:
         ranking = self.get_ranking()[:3]
