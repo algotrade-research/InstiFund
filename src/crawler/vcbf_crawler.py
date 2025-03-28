@@ -8,6 +8,11 @@ import argparse
 import yaml
 from tqdm import tqdm
 import pandas as pd
+from typing import Tuple, List
+from datetime import datetime
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 class VCBFCrawler():
@@ -21,7 +26,7 @@ class VCBFCrawler():
     SHEET_NAME = "BCDanhMucDauTu_06029"
 
     def __init__(self):
-        with open("../../../config/config.yaml", "r") as f:
+        with open("../../config/config.yaml", "r") as f:
             self.COOL_DOWN = yaml.safe_load(f)["crawler_cool_down"]
 
     def get_financial_statement_links(self, save_dir):
@@ -89,6 +94,7 @@ class VCBFCrawler():
         self.get_financial_statement_links(save_dir)
         self.download_files(save_dir)
         self.extract_all_data(save_dir)
+        self.merge_files(save_dir)
 
     def extract_all_data(self, save_dir):
         for file in os.listdir(f"{save_dir}/{self.DOWNLOAD_DIR}"):
@@ -141,9 +147,10 @@ class VCBFCrawler():
 
         # keep column contain "Category" or "Value" or "total asset"
         section_df = section_df.loc[:, section_df.columns.str.contains(
-            'Category|Value|total asset', case=False, na=False)]
+            'Category|Quantity|Market price|Value|total asset', case=False, na=False)]
         section_df = section_df.dropna()
-        section_df.columns = ['Category', 'Value', 'Total Asset Ratio']
+        section_df.columns = ['Category', 'Quantity',
+                              'Market Price', 'Value', 'Total Asset Ratio']
 
         # Display the extracted section
         print(section_df.head())
@@ -154,25 +161,69 @@ class VCBFCrawler():
             os.makedirs(save_dir)
         section_df.to_csv(f"{save_dir}/{file.split("/")[-1]}.csv", index=False)
 
+    def extract_date_symbol(self, file: str) -> Tuple[datetime, str]:
+        """
+        Extract the date and symbol from the file name
+        Example: "Báo cáo tháng 01-2023 - Quỹ VCBF-BCF.xlsx" -> (datetime(2023, 1, 1), "VCBF-BCF")
+        """
+        file = file.split("/")[-1]
+
+        # Extract the date
+        date_str = file.split("tháng")[1].split("-")[0].strip()
+        month, year = int(date_str), int(
+            file.split("-")[1].split(".")[0].strip())
+        date = datetime(year, month, 1)
+
+        # Extract the symbol
+        symbol = "VCBF-" + file.split("-")[-1].split(".")[0].strip()
+        return date, symbol
+
+    def merge_files(self, save_dir):
+        """
+        Merge all extracted files into a single JSON file
+        """
+        files = os.listdir(f"{save_dir}/{self.EXTRACT_DIR}")
+        columns = ['Fund Code', 'Date', 'Category', 'Quantity',
+                   'Market Price', 'Value', 'Total Asset Ratio']
+        merged_df = pd.DataFrame()
+        merged_df = merged_df.reindex(columns=columns)
+
+        for file in files:
+            df = pd.read_csv(f"{save_dir}/{self.EXTRACT_DIR}/{file}")
+            # skip empty files
+            if df.empty or df.isna().all().all():
+                print(f"Skipping empty file: {file}")
+                continue
+            date, symbol = self.extract_date_symbol(file)
+            df['Date'] = date
+            df['Fund Code'] = symbol
+            merged_df = pd.concat([merged_df, df], ignore_index=True)
+
+        merged_df.to_csv(f"{save_dir}/fund_portfolios.csv", index=False)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--save_dir", type=str, default=".")
+    parser.add_argument("--save_dir", type=str,
+                        default=os.getenv("DATA_PATH", "."))
     parser.add_argument("--operation", type=str,
                         default="all")
     args = parser.parse_args()
+    save_dir = f"../../{args.save_dir}/VCBF"
 
     crawler = VCBFCrawler()
-    if not os.path.exists(args.save_dir):
-        os.mkdir(args.save_dir)
+    if not os.path.exists(save_dir):
+        os.mkdir(save_dir)
 
     if args.operation == "get_financial_statement_links":
-        crawler.get_financial_statement_links(args.save_dir)
+        crawler.get_financial_statement_links(save_dir)
     elif args.operation == "download_files":
-        crawler.download_files(args.save_dir)
+        crawler.download_files(save_dir)
     elif args.operation == "all":
-        crawler.get_financial_statements(args.save_dir)
+        crawler.get_financial_statements(save_dir)
     elif args.operation == "extract_data":
-        crawler.extract_all_data(args.save_dir)
+        crawler.extract_all_data(save_dir)
+    elif args.operation == "merge_files":
+        crawler.merge_files(save_dir)
     else:
         print("Invalid operation")
