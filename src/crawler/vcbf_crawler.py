@@ -8,7 +8,7 @@ import argparse
 import yaml
 from tqdm import tqdm
 import pandas as pd
-from typing import Tuple, List
+from typing import Tuple
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -16,6 +16,10 @@ load_dotenv()
 
 
 class VCBFCrawler():
+    """
+    Note: the date in the result is the corresponding period data date, not the
+    release date
+    """
     VCBF_STATEMENTS_URL = ("https://www.vcbf.com/quan-he-nha-dau-tu/bao-cao-cua-cac-quy-mo"
                            "/bao-cao-tai-chinh-vcbf/")
     # VCBF fund crawler

@@ -16,3 +16,5 @@ DATABASE = {
     "HOST": os.getenv("DB_HOST", "localhost"),  # Default: localhost
     "PORT": os.getenv("DB_PORT", "5432"),  # Default: 5432
 }
+
+DATA_PATH = os.getenv("DATA_PATH", "data")
