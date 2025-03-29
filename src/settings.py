@@ -25,3 +25,6 @@ DATA_PATH = os.getenv("DATA_PATH", "data")
 LOGGING_CONFIG_PATH = Path(__file__).parent.parent / "config" / "logging.conf"
 logging.config.fileConfig(LOGGING_CONFIG_PATH)
 logger = logging.getLogger("my_logger")
+
+
+TRADING_FEE = float(os.getenv("TRADING_FEE", 0.0035))  # Default: 0.35%

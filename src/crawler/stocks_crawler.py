@@ -64,7 +64,6 @@ def get_daily_data(start_date: datetime, end_date: datetime) -> pd.DataFrame:
 
     df = pd.DataFrame(results)
     df['datetime'] = pd.to_datetime(df['datetime'])
-    df.set_index('datetime', inplace=True)
     logger.info(f"Data fetched successfully. Retrieved {len(df)} rows.")
     return df
 
@@ -91,7 +90,7 @@ if __name__ == "__main__":
             print(data.head())
             # Save to CSV
             csv_path = os.path.join(DATA_PATH, "daily_data.csv")
-            data.to_csv(csv_path, index=True)
+            data.to_csv(csv_path, index=False)
             logger.info(f"Data saved to {csv_path}")
     except Exception as e:
         logger.error(f"An error occurred: {e}")
