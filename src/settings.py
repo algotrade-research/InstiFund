@@ -1,6 +1,8 @@
 import os
 from dotenv import load_dotenv
 from pathlib import Path
+import logging
+import logging.config
 
 # Load .env file
 env_path = Path(__file__).parent / ".env"
@@ -18,3 +20,8 @@ DATABASE = {
 }
 
 DATA_PATH = os.getenv("DATA_PATH", "data")
+
+# Load logging configuration
+LOGGING_CONFIG_PATH = Path(__file__).parent.parent / "config" / "logging.conf"
+logging.config.fileConfig(LOGGING_CONFIG_PATH)
+logger = logging.getLogger("my_logger")
