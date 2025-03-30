@@ -19,8 +19,8 @@ class InstitutionalScoring:
             self.month = month
             self.year = year
             self.symbol = symbol
-            logger.debug(
-                f"Initializing FinancialStatement for {symbol} ({month}/{year})")
+            # logger.debug(
+            # f"Initializing FinancialStatement for {symbol} ({month}/{year})")
             self.data = self.get_data()
 
         def get_data(self) -> pd.DataFrame:
@@ -33,17 +33,17 @@ class InstitutionalScoring:
             - Value
             - Total Asset Ratio
             """
-            logger.debug(
-                f"Fetching data for {self.symbol} ({self.month}/{self.year})")
+            # logger.debug(
+            # f"Fetching data for {self.symbol} ({self.month}/{self.year})")
             df = FUND_DF[FUND_DF["Category"] == self.symbol]
             df = df[df["Date"].dt.month == self.month]
             df = df[df["Date"].dt.year == self.year]
-            if df.empty:
-                logger.debug(
-                    f"No data found for {self.symbol} ({self.month}/{self.year})")
-            else:
-                logger.debug(
-                    f"Data fetched for {self.symbol} ({self.month}/{self.year}): {len(df)} rows")
+            # if df.empty:
+            # logger.debug(
+            # f"No data found for {self.symbol} ({self.month}/{self.year})")
+            # else:
+            # logger.debug(
+            # f"Data fetched for {self.symbol} ({self.month}/{self.year}): {len(df)} rows")
             # sort by Fund Code
             df = df.sort_values(by=["Fund Code"])
             df = df.reset_index(drop=True)
@@ -53,12 +53,12 @@ class InstitutionalScoring:
         self.month = month
         self.year = year
         self.symbol = symbol
-        logger.debug(
-            f"Initializing InstitutionalScoring for {symbol} ({month}/{year})")
+        # logger.debug(
+        # f"Initializing InstitutionalScoring for {symbol} ({month}/{year})")
 
     def get_scores(self) -> Tuple[float, int, int]:
-        logger.debug(
-            f"Calculating scores for {self.symbol} ({self.month}/{self.year})")
+        # logger.debug(
+        # f"Calculating scores for {self.symbol} ({self.month}/{self.year})")
         current = self.FinancialStatement(self.month, self.year, self.symbol)
         last_month, last_year = get_last_month(self.month, self.year)
         last = self.FinancialStatement(last_month, last_year, self.symbol)
