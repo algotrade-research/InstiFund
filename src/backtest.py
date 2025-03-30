@@ -5,6 +5,7 @@ from src.market.portfolio import Portfolio
 from datetime import datetime
 from src.utitlies import get_last_month
 from src.settings import logger
+import numpy as np
 
 
 def sell(portfolio, simulation, asset, quantity):
@@ -13,8 +14,10 @@ def sell(portfolio, simulation, asset, quantity):
         logger.warning(f"Failed to sell {asset}.")
         return False
     portfolio.remove_asset(
-        asset, quantity, sell_info['total_revenue'], sell_info['date'])
-    logger.debug(f"Sold {quantity} shares of {asset}.")
+        asset, quantity, sell_info['total_revenue'], sell_info['price'], sell_info['date']
+    )
+    logger.debug(
+        f"Sold {quantity} shares of {asset} at {sell_info['price']} each.")
     return True
 
 
@@ -24,9 +27,50 @@ def buy(portfolio, simulation, symbol, quantity):
         logger.warning(f"Failed to buy {symbol}.")
         return False
     portfolio.add_asset(
-        symbol, quantity, buy_info['total_cost'], buy_info['date'])
-    logger.debug(f"Bought {quantity} shares of {symbol}.")
+        symbol, quantity, buy_info['total_cost'], buy_info['price'], buy_info['date']
+    )
+    logger.debug(
+        f"Bought {quantity} shares of {symbol} at {buy_info['price']} each.")
     return True
+
+
+def calculate_sharpe_ratio(realized_pl_values, risk_free_rate=0.0):
+    """
+    Calculate the Sharpe ratio.
+    :param realized_pl_values: List of realized profit/loss values over time.
+    :param risk_free_rate: Risk-free rate (default is 0.0).
+    :return: Sharpe ratio.
+    """
+    returns = np.diff(realized_pl_values)
+    excess_returns = returns - risk_free_rate
+    if np.std(excess_returns) == 0:
+        return 0.0
+    return np.mean(excess_returns) / np.std(excess_returns)
+
+
+def calculate_maximum_drawdown(realized_pl_values):
+    """
+    Calculate the maximum drawdown.
+    :param realized_pl_values: List of realized profit/loss values over time.
+    :return: Maximum drawdown as a percentage.
+    """
+    peak = -np.inf
+    max_drawdown = 0
+    for value in realized_pl_values:
+        peak = max(peak, value)
+        drawdown = (peak - value) / peak if peak != 0 else 0
+        max_drawdown = max(max_drawdown, drawdown)
+    return max_drawdown * 100
+
+
+def print_statistics(portfolio, realized_pl_values):
+    sharpe_ratio = calculate_sharpe_ratio(realized_pl_values)
+    max_drawdown = calculate_maximum_drawdown(realized_pl_values)
+
+    logger.info(f"Portfolio balance: {portfolio.balance}")
+    logger.info(f"Realized P/L: {portfolio.realized_profit_loss}")
+    logger.info(f"Sharpe Ratio: {sharpe_ratio:.2f}")
+    logger.info(f"Maximum Drawdown: {max_drawdown:.2f}%")
 
 
 if __name__ == '__main__':
@@ -37,7 +81,9 @@ if __name__ == '__main__':
     simulation = MarketSimulation(start_date, end_date)
     portfolio = Portfolio("Test Portfolio", 1000000)
 
+    realized_pl_values = [0.0]  # Track realized profit/loss over time
     delay = False
+
     while True:
         if not simulation.step():
             logger.info("Simulation completed.")
@@ -50,18 +96,21 @@ if __name__ == '__main__':
             delay = True
             continue
 
+        # Track realized profit/loss
+        realized_pl_values.append(portfolio.realized_profit_loss)
+
         # If the current month is the end_date, sell all stocks
         if simulation.current_date.month == end_date.month and simulation.current_date.year == end_date.year:
             logger.info(
                 "End of simulation period reached. Selling all stocks.")
             current_assets = list(portfolio.assets.keys())
             for asset in current_assets:
-                quantity = portfolio.assets[asset]
+                quantity = portfolio.assets[asset]['quantity']
                 if not sell(portfolio, simulation, asset, quantity):
                     delay = True
                     continue
             logger.info("Final portfolio statistics:")
-            logger.info(simulation.get_portfolio_statistics(portfolio))
+            print_statistics(portfolio, realized_pl_values)
             break
 
         # Rebalance the portfolio on the 8th day of each month
@@ -84,7 +133,7 @@ if __name__ == '__main__':
             # Sell stocks that are no longer in the top stocks
             for asset in current_assets:
                 if asset not in top_stocks:
-                    quantity = portfolio.assets[asset]
+                    quantity = portfolio.assets[asset]['quantity']
                     if not sell(portfolio, simulation, asset, quantity):
                         delay = True
                         continue
@@ -98,5 +147,4 @@ if __name__ == '__main__':
                         continue
 
         # Log the portfolio statistics
-        logger.debug("Current portfolio statistics:")
-        logger.debug(simulation.get_portfolio_statistics(portfolio))
+        logger.debug(f"Realized P/L so far: {portfolio.realized_profit_loss}")

@@ -77,6 +77,7 @@ class MarketSimulation:
             'symbol': symbol,
             'quantity': quantity,
             'total_cost': total_cost,
+            'price': price,
             'date': self.current_date
         }
 
@@ -96,20 +97,26 @@ class MarketSimulation:
             'symbol': symbol,
             'quantity': quantity,
             'total_revenue': total_revenue,
+            'price': price,
             'date': self.current_date
         }
 
     def get_portfolio_statistics(self, portfolio: Portfolio) -> Dict[str, Any]:
         """
-        Get the current total value, unrealized
-        profit/loss, and realized profit/loss of the portfolio.
+        Get the current total value, unrealized profit/loss, and realized profit/loss of the portfolio.
         """
         total_value = 0.0
-        for asset, quantity in portfolio.assets.items():
+        unrealized_profit_loss = 0.0
+
+        for asset, asset_data in portfolio.assets.items():
+            quantity = asset_data['quantity']
+            average_price = asset_data['average_price']
+
             if self.current_data.empty:
                 logger.warning(
                     "No market data available for the current date. Using previous data.")
                 continue
+
             try:
                 price = self.current_data[self.current_data['tickersymbol']
                                           == asset]['price'].values[0]
@@ -117,11 +124,22 @@ class MarketSimulation:
                 logger.warning(
                     f"Asset {asset} not found in current market data.")
                 continue
-            total_value += price * quantity
 
+            # Calculate the current value of the asset
+            current_value = price * quantity
+            total_value += current_value
+
+            # Calculate unrealized profit/loss considering the trading fee
+            # Adjust price for selling fee
+            effective_price = price * (1 - TRADING_FEE)
+            unrealized_profit_loss += (effective_price -
+                                       average_price) * quantity
+
+        # Add the portfolio's cash balance to the total value
         total_value += portfolio.balance
+
         return {
             'total_value': total_value,
-            'unrealized_profit_loss': total_value - portfolio.balance,
-            'realized_profit_loss': portfolio.balance - portfolio.initial_balance
+            'unrealized_profit_loss': unrealized_profit_loss,
+            'realized_profit_loss': portfolio.realized_profit_loss
         }
