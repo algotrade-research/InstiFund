@@ -12,6 +12,7 @@ FROM quote.close c
 JOIN quote.dailyvolume d ON c.tickersymbol = d.tickersymbol
     AND c.datetime = d.datetime
 WHERE c.datetime BETWEEN %s AND %s
+  AND c.tickersymbol ~ '^[^0-9]+$'  -- Ensure tickersymbol is not numeric
 ORDER BY c.datetime DESC
 """
 
