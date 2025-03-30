@@ -221,7 +221,7 @@ class Backtesting:
 
 
 if __name__ == '__main__':
-    start_date = datetime(2024, 1, 1)
+    start_date = datetime(2023, 2, 1)
     end_date = datetime(2024, 12, 31)
     initial_balance = 1000000
 

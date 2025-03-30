@@ -17,6 +17,15 @@ WHERE c.datetime BETWEEN %s AND %s
 ORDER BY c.datetime DESC
 """
 
+FINANCIAL_QUERY = """
+SELECT if.tickersymbol, if.year, if.quarter, it.name, if.value
+FROM financial.info if
+JOIN financial.item it ON if.code = it.code
+WHERE if.year BETWEEN %s AND %s
+    AND if.tickersymbol = ANY(%s)  -- Filter tickers using a list
+ORDER BY if.tickersymbol, if.year, if.quarter, it.name
+"""
+
 
 def execute_query(query: str, params: tuple = ()) -> List[Dict[str, Any]]:
     """
@@ -86,9 +95,9 @@ if __name__ == "__main__":
                         help="End date in YYYY-MM-DD format")
     args = parser.parse_args()
 
+    start_date = datetime.strptime(args.start_date, "%Y-%m-%d")
+    end_date = datetime.strptime(args.end_date, "%Y-%m-%d")
     try:
-        start_date = datetime.strptime(args.start_date, "%Y-%m-%d")
-        end_date = datetime.strptime(args.end_date, "%Y-%m-%d")
         logger.info(
             f"Starting data retrieval for range: {start_date} to {end_date}.")
         data = get_daily_data(start_date, end_date)
@@ -103,3 +112,28 @@ if __name__ == "__main__":
             logger.info(f"Data saved to {csv_path}")
     except Exception as e:
         logger.error(f"An error occurred: {e}")
+
+    # financial data
+    stocks_list = get_stocks_list()
+    try:
+        logger.info(
+            f"Starting financial data retrieval for range: {start_date} to {end_date}.")
+        # Get the list of stocks to filter
+        if not stocks_list:
+            logger.warning("No stocks found in the stock list.")
+            raise ValueError("No stocks found in the stock list.")
+
+        query = FINANCIAL_QUERY
+        params = (start_date.year, end_date.year, stocks_list)
+        results = execute_query(query, params)
+
+        if not results:
+            logger.warning("No financial data found for the given date range.")
+        else:
+            df = pd.DataFrame(results)
+            df.to_csv(os.path.join(
+                DATA_PATH, "financial_data.csv"), index=False)
+            logger.info("Financial data retrieved successfully. Saved to CSV.")
+    except Exception as e:
+        logger.error(f"An error occurred: {e}")
+    logger.info("Crawler finished running.")
