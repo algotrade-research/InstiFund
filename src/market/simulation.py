@@ -36,7 +36,8 @@ class MarketSimulation:
         """Advance the simulation by one day and update current data."""
         if self.current_date < self.end_date:
             self.current_date += pd.Timedelta(days=1)
-            logger.info(f"Advanced to {self.current_date}")
+            logger.info(
+                f"Advanced to {self.current_date.strftime('%Y-%m-%d')}")
             new_data = self.market_data[self.market_data['datetime']
                                         == self.current_date]
             if new_data.empty:
@@ -72,7 +73,7 @@ class MarketSimulation:
         price = self.current_data[self.current_data['tickersymbol']
                                   == symbol]['price'].values[0]
         total_cost = price * quantity * (1 + TRADING_FEE)
-        logger.info(f"Buying {quantity} shares of {symbol} at {price} each.")
+        logger.debug(f"Buying {quantity} shares of {symbol} at {price} each.")
         return {
             'symbol': symbol,
             'quantity': quantity,
@@ -92,7 +93,7 @@ class MarketSimulation:
         price = self.current_data[self.current_data['tickersymbol']
                                   == symbol]['price'].values[0]
         total_revenue = price * quantity * (1 - TRADING_FEE)
-        logger.info(f"Selling {quantity} shares of {symbol} at {price} each.")
+        logger.debug(f"Selling {quantity} shares of {symbol} at {price} each.")
         return {
             'symbol': symbol,
             'quantity': quantity,
