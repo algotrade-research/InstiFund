@@ -39,10 +39,10 @@ class InstitutionalScoring:
             df = df[df["Date"].dt.month == self.month]
             df = df[df["Date"].dt.year == self.year]
             if df.empty:
-                logger.warning(
+                logger.debug(
                     f"No data found for {self.symbol} ({self.month}/{self.year})")
             else:
-                logger.info(
+                logger.debug(
                     f"Data fetched for {self.symbol} ({self.month}/{self.year}): {len(df)} rows")
             # sort by Fund Code
             df = df.sort_values(by=["Fund Code"])
@@ -57,12 +57,14 @@ class InstitutionalScoring:
             f"Initializing InstitutionalScoring for {symbol} ({month}/{year})")
 
     def get_scores(self) -> Tuple[float, int, int]:
-        logger.info(
+        logger.debug(
             f"Calculating scores for {self.symbol} ({self.month}/{self.year})")
         current = self.FinancialStatement(self.month, self.year, self.symbol)
         last_month, last_year = get_last_month(self.month, self.year)
         last = self.FinancialStatement(last_month, last_year, self.symbol)
 
+        if current.data.empty or last.data.empty:
+            return 0.0, 0, 0
         try:
             fund_net_buying = (current.data["Value"].sum()
                                - last.data["Value"].sum()) / last.data["Value"].sum()
@@ -76,15 +78,21 @@ class InstitutionalScoring:
         # number funds increase their net asset value - number funds decrease
         # their net asset value
         net_fund_change = 0
-        for i in range(len(current.data)):
-            if current.data["Value"].iloc[i] > last.data["Value"].iloc[i]:
-                net_fund_change += 1
-            elif current.data["Value"].iloc[i] < last.data["Value"].iloc[i]:
-                net_fund_change -= 1
+        # outer merge by Fund Code, fill 0 for missing values
+        merged_df = pd.merge(current.data, last.data, on="Fund Code",
+                             how="outer", suffixes=("_current", "_last"))
+        # fill NaN with 0
+        merged_df = merged_df.fillna(0)
+        # count the number of funds that increase their net asset value
+        net_fund_change += len(merged_df[merged_df["Value_current"]
+                                         > merged_df["Value_last"]])
+        # count the number of funds that decrease their net asset value
+        net_fund_change -= len(merged_df[merged_df["Value_current"]
+                                         < merged_df["Value_last"]])
 
-        logger.info(f"Scores for {self.symbol} ({self.month}/{self.year}): "
-                    f"fund_net_buying={fund_net_buying}, "
-                    f"number_fund_holdings={number_fund_holdings}, "
-                    f"net_fund_change={net_fund_change}")
+        logger.debug(f"Scores for {self.symbol} ({self.month}/{self.year}): "
+                     f"fund_net_buying={fund_net_buying}, "
+                     f"number_fund_holdings={number_fund_holdings}, "
+                     f"net_fund_change={net_fund_change}")
 
         return fund_net_buying, number_fund_holdings, net_fund_change

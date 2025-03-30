@@ -1,4 +1,5 @@
 import os
+import sys
 from dotenv import load_dotenv
 from pathlib import Path
 import logging
@@ -23,7 +24,8 @@ DATA_PATH = os.getenv("DATA_PATH", "data")
 
 # Load logging configuration
 LOGGING_CONFIG_PATH = Path(__file__).parent.parent / "config" / "logging.conf"
-logging.config.fileConfig(LOGGING_CONFIG_PATH)
+logging.config.fileConfig(LOGGING_CONFIG_PATH, defaults={
+                          'sys.stdout': sys.stdout})
 logger = logging.getLogger("my_logger")
 
 

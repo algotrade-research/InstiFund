@@ -12,9 +12,9 @@ class StocksRanking:
     def get_all_scores(self) -> pd.DataFrame:
         df_list = []  # Use a list to collect rows
         for symbol in self.symbols:
+            scoring = InstitutionalScoring(self.month, self.year, symbol)
             (fund_net_buying, number_fund_holdings,
-             net_fund_change) = InstitutionalScoring(
-                self.month, self.year, symbol).get_scores()
+             net_fund_change) = scoring.get_scores()
             df_list.append({"symbol": symbol,
                             "fund_net_buying": fund_net_buying,
                             "number_fund_holdings": number_fund_holdings,
