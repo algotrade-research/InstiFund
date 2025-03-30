@@ -67,7 +67,7 @@ class MarketSimulation:
             logger.debug("No market data available for the current date.")
             return {}
         if symbol not in self.current_data['tickersymbol'].values:
-            logger.error(f"Stock {symbol} not found in current market data.")
+            logger.debug(f"Stock {symbol} not found in current market data.")
             return {}
         price = self.current_data[self.current_data['tickersymbol']
                                   == symbol]['price'].values[0]
@@ -86,7 +86,7 @@ class MarketSimulation:
             logger.debug("No market data available for the current date.")
             return {}
         if symbol not in self.current_data['tickersymbol'].values:
-            logger.error(f"Stock {symbol} not found in current market data.")
+            logger.debug(f"Stock {symbol} not found in current market data.")
             return {}
         price = self.current_data[self.current_data['tickersymbol']
                                   == symbol]['price'].values[0]
