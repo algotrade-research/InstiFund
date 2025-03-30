@@ -1,4 +1,5 @@
 from src.settings import DATABASE, DATA_PATH, logger
+from src.recommendation.data import get_stocks_list
 import psycopg2
 import pandas as pd
 from datetime import datetime
@@ -12,7 +13,7 @@ FROM quote.close c
 JOIN quote.dailyvolume d ON c.tickersymbol = d.tickersymbol
     AND c.datetime = d.datetime
 WHERE c.datetime BETWEEN %s AND %s
-  AND c.tickersymbol ~ '^[^0-9]+$'  -- Ensure tickersymbol is not numeric
+    AND c.tickersymbol = ANY(%s)  -- Filter tickers using a list
 ORDER BY c.datetime DESC
 """
 
@@ -55,8 +56,15 @@ def get_daily_data(start_date: datetime, end_date: datetime) -> pd.DataFrame:
     if start_date > end_date:
         logger.error("Start date must be before end date.")
         raise ValueError("Start date must be before end date")
+
+    # Get the list of stocks to filter
+    stocks_list = get_stocks_list()
+    if not stocks_list:
+        logger.warning("No stocks found in the stock list.")
+        return pd.DataFrame()
+
     query = DAILY_QUERY
-    params = (start_date, end_date)
+    params = (start_date, end_date, stocks_list)
     results = execute_query(query, params)
 
     if not results:
