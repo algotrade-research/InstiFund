@@ -29,4 +29,4 @@ logging.config.fileConfig(LOGGING_CONFIG_PATH, defaults={
 logger = logging.getLogger("my_logger")
 
 
-TRADING_FEE = float(os.getenv("TRADING_FEE", 0.0035))  # Default: 0.35%
+TRADING_FEE = float(os.getenv("TRADING_FEE", 0.0047))  # Default: 0.35% + 0.12%

@@ -118,7 +118,7 @@ class StocksRanking:
         self.calculate_fin_score(df)
 
         # Combine institutional and financial scores into a total score
-        df["score"] = 0.7 * df["inst_score"] + 0.3 * df["fin_score"]
+        df["score"] = 0.6 * df["inst_score"] + 0.4 * df["fin_score"]
 
         # Sort by score and return the symbols
         df = df.sort_values(by=["score"], ascending=False)

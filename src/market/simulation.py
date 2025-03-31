@@ -60,7 +60,7 @@ class MarketSimulation:
             self.current_trading_day_index += 1
             self.current_date = self.trading_days[self.current_trading_day_index]
             # logger.info(
-                # f"Advanced to {self.current_date.strftime('%Y-%m-%d')}")
+            # f"Advanced to {self.current_date.strftime('%Y-%m-%d')}")
             self.current_data = self.get_current_stock_data()
             return True
         else:
@@ -163,3 +163,29 @@ class MarketSimulation:
             'unrealized_profit_loss': unrealized_profit_loss,
             'realized_profit_loss': portfolio.realized_profit_loss
         }
+
+    def get_last_day_stock_price(self, symbol: str) -> float:
+        """
+        Get the last stock price for a given symbol before the current date.
+        """
+        if self.current_data.empty:
+            logger.debug("No market data available for the current date.")
+            return 0.0
+        if symbol not in self.current_data['tickersymbol'].values:
+            logger.debug(f"Stock {symbol} not found in current market data.")
+            return 0.0
+        last_date = self.current_date - pd.Timedelta(days=1)
+        # Filter the market data for the symbol and the last date
+        last_price_data = self.market_data[
+            (self.market_data['tickersymbol'] == symbol) &
+            (self.market_data['datetime'] <= last_date)
+        ].sort_values(by='datetime', ascending=False)
+        if last_price_data.empty:
+            logger.debug(
+                f"No price data available for {symbol} before {last_date}.")
+            return 0.0
+        # Get the last price before the current date
+        last_price = last_price_data.iloc[0]['price']
+        logger.debug(
+            f"Last price for {symbol} before {last_date}: {last_price}")
+        return last_price

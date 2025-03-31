@@ -87,13 +87,15 @@ class Backtesting:
     def print_statistics(self):
         sharpe_ratio = self.calculate_sharpe_ratio(self.daily_returns)
         max_drawdown = self.calculate_maximum_drawdown(self.daily_returns)
+        # Calculate cumulative return
+        cumulative_return = (1 + np.array(self.daily_returns)).prod() - 1
 
         logger.info(f"Portfolio balance: {self.portfolio.balance}")
         logger.info(f"Realized P/L: {self.portfolio.realized_profit_loss}")
-        logger.info(
-            f"P/L ratio: {self.portfolio.realized_profit_loss / self.portfolio.balance * 100:.2f}%")
         logger.info(f"Sharpe Ratio: {sharpe_ratio:.2f}")
         logger.info(f"Maximum Drawdown: {max_drawdown:.2f}%")
+        # Log cumulative return
+        logger.info(f"Cumulative Return: {cumulative_return:.2f}%")
 
     def is_matched_top_stocks(self) -> bool:
         """
@@ -123,11 +125,30 @@ class Backtesting:
                 quantity = self.portfolio.assets[asset]['quantity']
                 self.sell(asset, quantity)
 
+        # Calculate 90% of the portfolio balance for buying stocks
+        available_balance = self.portfolio.balance * 0.9
+
+        # Get trading volumes and scores for the top stocks
+        total_score = sum(score for _, score in ranked_stocks[:3])
+        weights = {symbol: score / total_score for symbol,
+                   score in ranked_stocks[:3]}
+
         # Buy new stocks that are in the top stocks but not in the portfolio
         for symbol in self.top_stocks:
             if symbol not in current_assets:
-                quantity = 200  # Example: Buy 200 shares of each new stock
-                self.buy(symbol, quantity)
+                # Allocate funds based on weight
+                allocated_funds = available_balance * weights[symbol]
+                stock_price = self.simulation.get_last_day_stock_price(
+                    symbol) * 1.01
+                if stock_price is None or stock_price <= 0:
+                    logger.warning(
+                        f"Failed to get price for {symbol}. Skipping.")
+                    continue
+
+                # Calculate the number of shares to buy, limited to 5000
+                quantity = min(int(allocated_funds // stock_price), 10000)
+                if quantity > 0:
+                    self.buy(symbol, quantity)
 
         # Update the need_rebalance flag
         if self.is_matched_top_stocks():
@@ -139,6 +160,7 @@ class Backtesting:
         while True:
             if not self.simulation.step():
                 logger.info("Simulation completed.")
+                self.print_statistics()
                 break
             if self.simulation.current_date.month != last_month:
                 last_month = self.simulation.current_date.month
