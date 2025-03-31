@@ -22,16 +22,28 @@ except Exception as e:
     logger.error(f"Failed to load fund portfolios data: {e}")
     FUND_DF = pd.DataFrame()  # Fallback to an empty DataFrame
 
+# Load financial data
+try:
+    logger.info("Loading financial data from JSON file.")
+    path = os.path.join(DATA_PATH, "financial_data_with_close_price.csv")
+    FINANCIAL_DF = pd.read_csv(path)
+    logger.info(
+        f"Financial data loaded successfully with {len(FINANCIAL_DF)} rows.")
+except Exception as e:
+    logger.error(f"Failed to load financial data: {e}")
+    FINANCIAL_DF = pd.DataFrame()
+
 
 def get_stocks_list() -> List[str]:
     """
     Get the list of stock symbols
     """
     try:
-        logger.info("Fetching the list of stock symbols.")
+        # logger.info("Fetching the list of stock symbols.")
         stock_list = FUND_DF["Category"].unique().tolist()
         logger.info(f"Retrieved {len(stock_list)} unique stock symbols.")
         return stock_list
     except KeyError as e:
         logger.error(f"Failed to fetch stock symbols: {e}")
         return []
+
