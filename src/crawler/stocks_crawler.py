@@ -1,5 +1,6 @@
 from src.settings import DATABASE, DATA_PATH, logger
 from src.recommendation.data import get_stocks_list
+from src.recommendation.stocks import USED_COLUMNS
 import psycopg2
 import pandas as pd
 from datetime import datetime
@@ -8,7 +9,7 @@ import argparse
 import os
 
 DAILY_QUERY = """
-SELECT c.datetime, c.tickersymbol, c.price, d.quantity 
+SELECT c.datetime, c.tickersymbol, c.price, d.quantity
 FROM quote.close c
 JOIN quote.dailyvolume d ON c.tickersymbol = d.tickersymbol
     AND c.datetime = d.datetime
@@ -23,6 +24,7 @@ FROM financial.info if
 JOIN financial.item it ON if.code = it.code
 WHERE if.year BETWEEN %s AND %s
     AND if.tickersymbol = ANY(%s)  -- Filter tickers using a list
+    AND it.name = ANY(%s)  -- Filter items using a list
 ORDER BY if.tickersymbol, if.year, if.quarter, it.name
 """
 
@@ -79,7 +81,6 @@ def get_daily_data(start_date: datetime, end_date: datetime) -> pd.DataFrame:
         logger.error("Start date must be before end date.")
         raise ValueError("Start date must be before end date")
 
-    # Get the list of stocks to filter
     stocks_list = get_stocks_list()
     if not stocks_list:
         logger.warning("No stocks found in the stock list.")
@@ -99,6 +100,114 @@ def get_daily_data(start_date: datetime, end_date: datetime) -> pd.DataFrame:
     return df
 
 
+def save_daily_data_to_csv(daily_data: pd.DataFrame):
+    """
+    Save daily data to a CSV file.
+    """
+    if daily_data.empty:
+        logger.warning("No daily data to save.")
+        return
+
+    file_path = os.path.join(DATA_PATH, "daily_data.csv")
+    daily_data.to_csv(file_path, index=False)
+    logger.info(f"Daily data saved to {file_path}.")
+
+
+def get_financial_data(start_date: datetime, end_date: datetime, daily_data: pd.DataFrame) -> pd.DataFrame:
+    """
+    Retrieve financial data and add last close price.
+    If any stock is missing a column in USED_COLUMNS for a quarter, fill it with the previous quarter's value.
+    """
+    stocks_list = get_stocks_list()
+    if not stocks_list:
+        logger.warning("No stocks found in the stock list.")
+        raise ValueError("No stocks found in the stock list.")
+
+    logger.info(f"Stock list: {stocks_list}")
+
+    query = FINANCIAL_QUERY
+    params = (start_date.year, end_date.year, stocks_list, USED_COLUMNS)
+    financial_results = execute_query(query, params)
+
+    if not financial_results:
+        logger.warning("No financial data found for the given date range.")
+        return pd.DataFrame()
+
+    financial_df = pd.DataFrame(financial_results)
+    logger.info("Financial data retrieved successfully.")
+
+    return financial_df
+
+
+def fill_missing_financial_data(financial_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Fill missing financial data for each stock and quarter using the previous quarter's values.
+    """
+    # Sort the financial data by tickersymbol, year, and quarter
+    financial_df.sort_values(
+        by=["tickersymbol", "year", "quarter"], inplace=True)
+
+    # Pivot the data to make it easier to work with
+    pivot_df = financial_df.pivot_table(
+        index=["tickersymbol", "year", "quarter"],
+        columns="name",
+        values="value",
+        aggfunc="first"
+    ).reset_index()
+
+    # Iterate through each stock and fill missing values
+    for column in USED_COLUMNS:
+        pivot_df[column] = pivot_df.groupby(
+            "tickersymbol")[column].fillna(method="ffill")
+
+    # Melt the data back to the original format
+    filled_df = pivot_df.melt(
+        id_vars=["tickersymbol", "year", "quarter"],
+        var_name="name",
+        value_name="value"
+    )
+
+    return filledomf
+
+
+def save_financial_data_to_csv(financial_df: pd.DataFrame):
+    """
+    Save financial data to a CSV file.
+    """
+    if financial_df.empty:
+        logger.warning("No financial data to save.")
+        return
+
+    file_path = os.path.join(DATA_PATH, "financial_data.csv")
+    financial_df.to_csv(file_path, index=False)
+    logger.info(f"Financial data saved to {file_path}.")
+
+
+def main(start_date: datetime, end_date: datetime):
+    """
+    Main function to run the stocks crawler.
+    """
+    # Retrieve daily data
+    try:
+        logger.info(
+            f"Starting data retrieval for range: {start_date} to {end_date}.")
+        daily_data = get_daily_data(start_date, end_date)
+        save_daily_data_to_csv(daily_data)
+    except Exception as e:
+        logger.error(f"An error occurred while retrieving daily data: {e}")
+
+    # Retrieve financial data
+    try:
+        logger.info(
+            f"Starting financial data retrieval for range: {start_date} to {end_date}.")
+        financial_df = get_financial_data(start_date, end_date, daily_data)
+        save_financial_data_to_csv(financial_df)
+    except Exception as e:
+        logger.error(f"An error occurred while retrieving financial data: {e}")
+
+    logger.info("Crawler finished running.")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Stocks Crawler for daily data")
@@ -111,67 +220,4 @@ if __name__ == "__main__":
     start_date = datetime.strptime(args.start_date, "%Y-%m-%d")
     end_date = datetime.strptime(args.end_date, "%Y-%m-%d")
 
-    # Retrieve close price data
-    try:
-        logger.info(
-            f"Starting data retrieval for range: {start_date} to {end_date}.")
-        daily_data = get_daily_data(start_date, end_date)
-        if daily_data.empty:
-            logger.warning("No data found for the given date range.")
-        else:
-            logger.info("Daily data retrieved successfully.")
-            print(daily_data.head())
-
-            # Save to CSV
-            daily_data.to_csv(os.path.join(
-                DATA_PATH, "daily_data.csv"), index=False)
-            logger.info("Daily data saved to CSV.")
-    except Exception as e:
-        logger.error(f"An error occurred while retrieving daily data: {e}")
-
-    # Retrieve financial data and add last close price
-    stocks_list = get_stocks_list()
-    try:
-        logger.info(
-            f"Starting financial data retrieval for range: {start_date} to {end_date}.")
-        if not stocks_list:
-            logger.warning("No stocks found in the stock list.")
-            raise ValueError("No stocks found in the stock list.")
-
-        query = FINANCIAL_QUERY
-        params = (start_date.year, end_date.year, stocks_list)
-        financial_results = execute_query(query, params)
-
-        if not financial_results:
-            logger.warning("No financial data found for the given date range.")
-        else:
-            logger.info("Financial data retrieved successfully.")
-            financial_df = pd.DataFrame(financial_results)
-
-            # Add last close price as a new row for each stock and quarter
-            logger.info("Calculating last close prices.")
-            last_close_prices = get_last_close_price(daily_data)
-            rows_to_add = []
-            for _, row in last_close_prices.iterrows():
-                rows_to_add.append({
-                    "tickersymbol": row["tickersymbol"],
-                    "year": row["quarter"].year,
-                    "quarter": row["quarter"].quarter,
-                    "name": "Last Close Price",
-                    "value": row["last_close_price"]
-                })
-
-            # Convert rows_to_add to a DataFrame and concatenate with financial_df
-            rows_to_add_df = pd.DataFrame(rows_to_add)
-            financial_df = pd.concat(
-                [financial_df, rows_to_add_df], ignore_index=True)
-
-            # Save to CSV
-            print(financial_df.head())
-            financial_df.to_csv(os.path.join(
-                DATA_PATH, "financial_data_with_close_price.csv"), index=False)
-            logger.info("Financial data with last close price saved to CSV.")
-    except Exception as e:
-        logger.error(f"An error occurred while retrieving financial data: {e}")
-
-    logger.info("Crawler finished running.")
+    main(start_date, end_date)
