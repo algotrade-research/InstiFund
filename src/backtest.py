@@ -11,6 +11,8 @@ import matplotlib.pyplot as plt
 
 
 class Backtesting:
+    RELEASE_DAY = 20  # Day of the month that new data is released
+
     def __init__(self, start_date: datetime, end_date: datetime, initial_balance: float):
         self.start_date = start_date
         self.end_date = end_date
@@ -29,11 +31,15 @@ class Backtesting:
         if sell_info.get('total_revenue') is None:
             logger.warning(f"Failed to sell {asset}.")
             return False
+        realized_pl = sell_info['total_revenue'] - \
+            self.portfolio.paid_value(asset)
         self.portfolio.remove_asset(
-            asset, quantity, sell_info['total_revenue'], sell_info['price'], sell_info['date']
+            asset, quantity, sell_info['total_revenue'], sell_info['price'],
+            sell_info['date']
         )
         logger.info(
-            f"Sold {quantity} shares of {asset} at {sell_info['price']} each.")
+            f"Sold {quantity} shares of {asset} at {sell_info['price']} each."
+            f" Realized P/L: {realized_pl:.2f}")
         return True
 
     def buy(self, symbol, quantity):
@@ -99,14 +105,13 @@ class Backtesting:
             f"Date: {self.simulation.current_date.strftime('%Y-%m-%d')}")
         logger.info(
             f"Rebalancing portfolio on {self.simulation.current_date}.")
-        last_month, last_year = get_last_month(
-            self.simulation.current_date.month, self.simulation.current_date.year
-        )
         ranked_stocks = StocksRanking(
-            last_month, last_year, self.stocks).get_ranking()
+            self.simulation.current_date.month,
+            self.simulation.current_date.year,
+            self.stocks).get_ranking()
 
         self.top_stocks = [symbol for symbol, _ in ranked_stocks[:3]]
-        logger.info(f"Top 3 stocks for rebalancing: {self.top_stocks}")
+        logger.info(f"Top 3 stocks for rebalancing: {ranked_stocks[:3]}")
 
         current_assets = list(self.portfolio.assets.keys())
 
@@ -159,8 +164,10 @@ class Backtesting:
             if (
                 self.simulation.current_date.month == self.end_date.month
                 and self.simulation.current_date.year == self.end_date.year
-                and self.simulation.current_date.day >= 8
+                and self.simulation.current_date.day >= self.RELEASE_DAY
             ):
+                logger.info(
+                    f"Date: {self.simulation.current_date.strftime('%Y-%m-%d')}")
                 logger.info(
                     "End of simulation period reached. Selling all stocks.")
                 current_assets = list(self.portfolio.assets.keys())
@@ -172,7 +179,8 @@ class Backtesting:
                 break
 
             # Rebalance the portfolio on the 8th day of each month
-            if self.simulation.current_date.day >= 8 and self.need_rebalance:
+            if self.simulation.current_date.day >= self.RELEASE_DAY\
+                    and self.need_rebalance:
                 self.rebalance_portfolio()
 
             # Log the portfolio statistics
@@ -194,6 +202,7 @@ class Backtesting:
         df.set_index('Date', inplace=True)
         df['Cumulative Return'] = (1 + df['Daily Return']).cumprod() - 1
         df.to_csv(file_path, index=False)
+
         # Export plot by Date
         plt.figure(figsize=(10, 6))
         plt.plot(df.index, df['Cumulative Return'], label='Cumulative Return')
@@ -205,6 +214,7 @@ class Backtesting:
         plt.grid()
         plt.savefig(file_path.replace('.csv', '.png'))
         plt.close()
+
         # Export plot by Daily Return
         plt.figure(figsize=(10, 6))
         plt.plot(df.index, df['Daily Return'], label='Daily Return')
@@ -222,7 +232,7 @@ class Backtesting:
 
 if __name__ == '__main__':
     start_date = datetime(2023, 2, 1)
-    end_date = datetime(2024, 12, 31)
+    end_date = datetime(2023, 12, 31)
     initial_balance = 1000000
 
     backtesting = Backtesting(start_date, end_date, initial_balance)

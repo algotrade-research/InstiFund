@@ -51,15 +51,15 @@ class InstitutionalScoring:
         scores = []
 
         for symbol in self.symbols:
-            logger.debug(
-                f"Calculating scores for {symbol} ({self.month}/{self.year})")
+            # # logger.debug(
+            #     f"Calculating scores for {symbol} ({self.month}/{self.year})")
             current = self.FinancialStatement(self.month, self.year, symbol)
             last_month, last_year = get_last_month(self.month, self.year)
             last = self.FinancialStatement(last_month, last_year, symbol)
 
             if current.data.empty or last.data.empty:
-                logger.warning(
-                    f"No data available for {symbol} ({self.month}/{self.year}). Skipping.")
+                # logger.debug(
+                # f"No data available for {symbol} ({self.month}/{self.year}). Skipping.")
                 scores.append({
                     "symbol": symbol,
                     "fund_net_buying": 0.0,
@@ -88,10 +88,10 @@ class InstitutionalScoring:
             net_fund_change -= len(
                 merged_df[merged_df["Value_current"] < merged_df["Value_last"]])
 
-            logger.debug(f"Scores for {symbol} ({self.month}/{self.year}): "
-                         f"fund_net_buying={fund_net_buying}, "
-                         f"number_fund_holdings={number_fund_holdings}, "
-                         f"net_fund_change={net_fund_change}")
+            # logger.debug(f"Scores for {symbol} ({self.month}/{self.year}): "
+            #              f"fund_net_buying={fund_net_buying}, "
+            #              f"number_fund_holdings={number_fund_holdings}, "
+            #              f"net_fund_change={net_fund_change}")
 
             scores.append({
                 "symbol": symbol,
