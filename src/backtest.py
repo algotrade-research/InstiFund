@@ -90,6 +90,8 @@ class Backtesting:
 
         logger.info(f"Portfolio balance: {self.portfolio.balance}")
         logger.info(f"Realized P/L: {self.portfolio.realized_profit_loss}")
+        logger.info(
+            f"P/L ratio: {self.portfolio.realized_profit_loss / self.portfolio.balance * 100:.2f}%")
         logger.info(f"Sharpe Ratio: {sharpe_ratio:.2f}")
         logger.info(f"Maximum Drawdown: {max_drawdown:.2f}%")
 
