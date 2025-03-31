@@ -8,12 +8,15 @@ from src.settings import logger, DATA_PATH
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from vnstock import Vnstock
 
 
 class Backtesting:
     RELEASE_DAY = 20  # Day of the month that new data is released
     MAX_VOLUME = 20000  # Maximum volume of stocks to buy/sell in one transaction
     NUMBER_OF_STOCKS = 5  # Number of stocks to keep in the portfolio
+    TRAILING_STOP_LOSS = 0.30  # 10% loss threshold to trigger a sell
+    TAKE_PROFIT = 0.28  # 20% profit threshold to trigger a sell
 
     def __init__(self, start_date: datetime, end_date: datetime, initial_balance: float):
         self.start_date = start_date
@@ -27,6 +30,7 @@ class Backtesting:
         self.previous_total_value = initial_balance
         self.top_stocks = []  # Top stocks for rebalancing
         self.need_rebalance = True
+        self.peak_prices = {}  # Track the peak price of each stock in the portfolio
 
     def sell(self, asset, quantity):
         sell_info = self.simulation.sell_stock(asset, quantity)
@@ -117,7 +121,7 @@ class Backtesting:
         self.top_stocks = [symbol for symbol,
                            _ in ranked_stocks[:self.NUMBER_OF_STOCKS]]
         logger.info(
-            f"Top 3 stocks for rebalancing: {ranked_stocks[:self.NUMBER_OF_STOCKS]}")
+            f"Top {self.NUMBER_OF_STOCKS} stocks for rebalancing: {ranked_stocks[:self.NUMBER_OF_STOCKS]}")
 
         current_assets = list(self.portfolio.assets.keys())
 
@@ -131,11 +135,12 @@ class Backtesting:
         # Calculate 90% of the portfolio balance for buying stocks
         available_balance = self.portfolio.balance * 0.9
 
-        # Get trading volumes and scores for the top stocks
-        total_score = sum(
-            score for _, score in ranked_stocks[:self.NUMBER_OF_STOCKS])
-        weights = {symbol: score / total_score for symbol,
-                   score in ranked_stocks[:self.NUMBER_OF_STOCKS]}
+        # Get scores for the top stocks and apply softmax to calculate weights
+        scores = np.array(
+            [score for _, score in ranked_stocks[:self.NUMBER_OF_STOCKS]])
+        softmax_weights = np.exp(scores) / np.sum(np.exp(scores))
+        weights = {symbol: weight for (symbol, _), weight in zip(
+            ranked_stocks[:self.NUMBER_OF_STOCKS], softmax_weights)}
 
         # Buy or adjust holdings for the top stocks
         for symbol in self.top_stocks:
@@ -145,7 +150,7 @@ class Backtesting:
                 logger.warning(f"Failed to get price for {symbol}. Skipping.")
                 continue
 
-            # Allocate funds based on weight
+            # Allocate funds based on softmax weight
             allocated_funds = available_balance * weights[symbol]
             desired_quantity = min(
                 int(allocated_funds // stock_price), self.MAX_VOLUME)
@@ -164,6 +169,54 @@ class Backtesting:
         if self.is_matched_top_stocks():
             self.need_rebalance = False
 
+    def update_peak_price(self, asset, current_price):
+        """
+        Update the peak price for a given asset.
+        """
+        if asset not in self.peak_prices:
+            self.peak_prices[asset] = current_price
+        else:
+            self.peak_prices[asset] = max(
+                self.peak_prices[asset], current_price)
+
+    def check_sell_conditions(self, asset):
+        """
+        Check if the asset should be sold based on trailing stop loss or take profit conditions.
+        """
+        asset_data = self.portfolio.assets.get(asset, {})
+        if not asset_data:
+            return False
+
+        purchase_price = asset_data['average_price']
+        current_price = self.simulation.get_last_day_stock_price(asset)
+
+        if current_price is None or current_price <= 0:
+            logger.warning(
+                f"Failed to get current price for {asset}. Skipping sell condition check.")
+            return False
+
+        # Update the peak price for the asset
+        self.update_peak_price(asset, current_price)
+
+        # Calculate percentage change from purchase price
+        price_change = (current_price - purchase_price) / purchase_price
+
+        # Check take profit condition
+        if price_change >= self.TAKE_PROFIT:
+            logger.info(
+                f"Take profit triggered for {asset}. Current price: {current_price}, Purchase price: {purchase_price}")
+            return True
+
+        # Check trailing stop loss condition
+        peak_price = self.peak_prices.get(asset, current_price)
+        if (current_price - peak_price) / peak_price <= -self.TRAILING_STOP_LOSS:
+            logger.info(
+                f"Trailing stop loss triggered for {asset}. Current price: {current_price}, Peak price: {peak_price}")
+            self.need_rebalance = True
+            return True
+
+        return False
+
     def run(self):
         logger.info("Starting backtesting process.")
         last_month = self.simulation.current_date.month
@@ -180,7 +233,6 @@ class Backtesting:
             portfolio_statistics = self.simulation.get_portfolio_statistics(
                 self.portfolio)
             current_total_value = portfolio_statistics['total_value']
-            # logger.info(f"Current portfolio value: {current_total_value:.2f}")
             daily_return = (
                 current_total_value - self.previous_total_value) / self.previous_total_value
             self.daily_returns.append(daily_return)
@@ -194,6 +246,13 @@ class Backtesting:
             self.trading_days.append(
                 self.simulation.current_date.strftime("%Y-%m-%d"))
 
+            # Check sell conditions for each asset in the portfolio
+            current_assets = list(self.portfolio.assets.keys())
+            for asset in current_assets:
+                if self.check_sell_conditions(asset):
+                    quantity = self.portfolio.assets[asset]['quantity']
+                    self.sell(asset, quantity)
+
             # If the current month is the end_date, sell all stocks
             if (
                 self.simulation.current_date.month == self.end_date.month
@@ -204,7 +263,6 @@ class Backtesting:
                     f"Date: {self.simulation.current_date.strftime('%Y-%m-%d')}")
                 logger.info(
                     "End of simulation period reached. Selling all stocks.")
-                current_assets = list(self.portfolio.assets.keys())
                 for asset in current_assets:
                     quantity = self.portfolio.assets[asset]['quantity']
                     self.sell(asset, quantity)
@@ -223,11 +281,13 @@ class Backtesting:
 
     def save_results(self, file_path: str = DATA_PATH + "/backtest_results.csv"):
         """
-        Save the daily returns to a CSV file.
+        Save the daily returns, cumulative returns, VNINDEX data, and maximum drawdown plot to files.
         """
         if not self.daily_returns:
             logger.warning("No daily returns to save.")
             return
+
+        # Create a DataFrame for portfolio returns
         df = pd.DataFrame({
             'Date': self.trading_days,
             'Daily Return': self.daily_returns
@@ -235,39 +295,69 @@ class Backtesting:
         df['Date'] = pd.to_datetime(df['Date'])
         df.set_index('Date', inplace=True)
         df['Cumulative Return'] = (1 + df['Daily Return']).cumprod() - 1
-        df.to_csv(file_path, index=False)
 
-        # Export plot by Date
+        # Add VNINDEX data
+        vnindex = Vnstock().stock(symbol="ACB", source="VCI")
+        vnindex_hist = vnindex.quote.history(symbol="VNINDEX",
+                                             start=self.start_date.strftime(
+                                                 "%Y-%m-%d"),
+                                             end=self.end_date.strftime(
+                                                 "%Y-%m-%d"),
+                                             interval="1D")
+        vnindex_hist = vnindex_hist.rename(
+            columns={"close": "VNINDEX"}).reset_index()
+        vnindex_hist['Date'] = pd.to_datetime(vnindex_hist['time'])
+        vnindex_hist.set_index('Date', inplace=True)
+        vnindex_hist = vnindex_hist.reindex(df.index, method='ffill')
+        df['VNINDEX'] = vnindex_hist['VNINDEX']
+        df['VNINDEX Daily Return'] = df['VNINDEX'].pct_change()
+        df['VNINDEX Cumulative Return'] = (
+            1 + df['VNINDEX Daily Return']).cumprod() - 1
+
+        # Save the results to a CSV file
+        df.to_csv(file_path, index=True)
+
+        # Export cumulative return plot with VNINDEX
         plt.figure(figsize=(10, 6))
-        plt.plot(df.index, df['Cumulative Return'], label='Cumulative Return')
-        plt.title('Cumulative Return Over Time')
+        plt.plot(df.index, df['Cumulative Return'],
+                 label='Portfolio Cumulative Return')
+        plt.plot(df.index, df['VNINDEX Cumulative Return'],
+                 label='VNINDEX Cumulative Return', linestyle='--')
+        plt.title('Cumulative Return vs VNINDEX')
         plt.xlabel('Date')
         plt.ylabel('Cumulative Return')
-        plt.tight_layout()
         plt.legend()
         plt.grid()
-        plt.savefig(file_path.replace('.csv', '.png'))
+        plt.tight_layout()
+        plt.savefig(file_path.replace('.csv', '_cumulative_return.png'))
         plt.close()
 
-        # Export plot by Daily Return
+        # Export maximum drawdown plot
+        max_drawdown = self.calculate_maximum_drawdown(self.daily_returns)
+        cumulative_returns = (1 + np.array(self.daily_returns)).cumprod() - 1
+        drawdowns = [(peak - value) / (peak + 1) if peak != 0 else 0
+                     for peak, value in
+                     zip(np.maximum.accumulate(cumulative_returns),
+                         cumulative_returns)]
         plt.figure(figsize=(10, 6))
-        plt.plot(df.index, df['Daily Return'], label='Daily Return')
-        plt.title('Daily Return Over Time')
+        plt.plot(df.index, drawdowns, label='Drawdown')
+        plt.title(f'Maximum Drawdown: {max_drawdown:.2f}%')
         plt.xlabel('Date')
-        plt.ylabel('Daily Return')
-        plt.tight_layout()
+        plt.ylabel('Drawdown')
         plt.legend()
         plt.grid()
-        plt.savefig(file_path.replace('.csv', '_daily.png'))
+        plt.tight_layout()
+        plt.savefig(file_path.replace('.csv', '_max_drawdown.png'))
         plt.close()
 
-        logger.info(f"Daily returns saved to {file_path}.")
+        logger.info(
+            f"Results saved to {file_path} and associated plots exported.")
 
 
 if __name__ == '__main__':
     start_date = datetime(2023, 2, 1)
     end_date = datetime(2024, 1, 31)  # the day must be >= 20
-    initial_balance = 1000000
+    initial_balance = 5000000
 
     backtesting = Backtesting(start_date, end_date, initial_balance)
     backtesting.run()
