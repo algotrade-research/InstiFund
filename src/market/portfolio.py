@@ -96,14 +96,13 @@ class Portfolio:
         df = pd.DataFrame(data)
         df.to_csv(file_path, index=False)
 
-    def paid_value(self, asset_name: str) -> float:
+    def paid_value(self, asset_name: str, quantity: int) -> float:
         """
         Calculate the paid value of an asset in the portfolio.
         :param asset_name: The name of the asset.
         :return: The paid value of the asset.
         """
         if asset_name in self.assets:
-            quantity = self.assets[asset_name]['quantity']
             avg_price = self.assets[asset_name]['average_price']
             return quantity * avg_price
         else:

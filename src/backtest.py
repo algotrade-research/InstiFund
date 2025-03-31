@@ -12,6 +12,8 @@ import matplotlib.pyplot as plt
 
 class Backtesting:
     RELEASE_DAY = 20  # Day of the month that new data is released
+    MAX_VOLUME = 20000  # Maximum volume of stocks to buy/sell in one transaction
+    NUMBER_OF_STOCKS = 5  # Number of stocks to keep in the portfolio
 
     def __init__(self, start_date: datetime, end_date: datetime, initial_balance: float):
         self.start_date = start_date
@@ -29,10 +31,10 @@ class Backtesting:
     def sell(self, asset, quantity):
         sell_info = self.simulation.sell_stock(asset, quantity)
         if sell_info.get('total_revenue') is None:
-            logger.warning(f"Failed to sell {asset}.")
+            logger.warning(f"Failed to sell {quantity} shares of {asset}.")
             return False
         realized_pl = sell_info['total_revenue'] - \
-            self.portfolio.paid_value(asset)
+            self.portfolio.paid_value(asset, quantity)
         self.portfolio.remove_asset(
             asset, quantity, sell_info['total_revenue'], sell_info['price'],
             sell_info['date']
@@ -45,7 +47,7 @@ class Backtesting:
     def buy(self, symbol, quantity):
         buy_info = self.simulation.buy_stock(symbol, quantity)
         if buy_info.get('total_cost') is None:
-            logger.warning(f"Failed to buy {symbol}.")
+            logger.warning(f"Failed to buy {quantity} shares of {symbol}.")
             return False
         self.portfolio.add_asset(
             symbol, quantity, buy_info['total_cost'], buy_info['price'], buy_info['date']
@@ -106,16 +108,16 @@ class Backtesting:
 
     def rebalance_portfolio(self):
         logger.info(
-            f"Date: {self.simulation.current_date.strftime('%Y-%m-%d')}")
-        logger.info(
-            f"Rebalancing portfolio on {self.simulation.current_date}.")
+            f"Date: {self.simulation.current_date.strftime('%Y-%m-%d')} - Rebalancing portfolio.")
         ranked_stocks = StocksRanking(
             self.simulation.current_date.month,
             self.simulation.current_date.year,
             self.stocks).get_ranking()
 
-        self.top_stocks = [symbol for symbol, _ in ranked_stocks[:3]]
-        logger.info(f"Top 3 stocks for rebalancing: {ranked_stocks[:3]}")
+        self.top_stocks = [symbol for symbol,
+                           _ in ranked_stocks[:self.NUMBER_OF_STOCKS]]
+        logger.info(
+            f"Top 3 stocks for rebalancing: {ranked_stocks[:self.NUMBER_OF_STOCKS]}")
 
         current_assets = list(self.portfolio.assets.keys())
 
@@ -123,32 +125,40 @@ class Backtesting:
         for asset in current_assets:
             if asset not in self.top_stocks:
                 quantity = self.portfolio.assets[asset]['quantity']
-                self.sell(asset, quantity)
+                if quantity > 0:
+                    self.sell(asset, quantity)
 
         # Calculate 90% of the portfolio balance for buying stocks
         available_balance = self.portfolio.balance * 0.9
 
         # Get trading volumes and scores for the top stocks
-        total_score = sum(score for _, score in ranked_stocks[:3])
+        total_score = sum(
+            score for _, score in ranked_stocks[:self.NUMBER_OF_STOCKS])
         weights = {symbol: score / total_score for symbol,
-                   score in ranked_stocks[:3]}
+                   score in ranked_stocks[:self.NUMBER_OF_STOCKS]}
 
-        # Buy new stocks that are in the top stocks but not in the portfolio
+        # Buy or adjust holdings for the top stocks
         for symbol in self.top_stocks:
-            if symbol not in current_assets:
-                # Allocate funds based on weight
-                allocated_funds = available_balance * weights[symbol]
-                stock_price = self.simulation.get_last_day_stock_price(
-                    symbol) * 1.01
-                if stock_price is None or stock_price <= 0:
-                    logger.warning(
-                        f"Failed to get price for {symbol}. Skipping.")
-                    continue
+            stock_price = self.simulation.get_last_day_stock_price(
+                symbol) * 1.01
+            if stock_price is None or stock_price <= 0:
+                logger.warning(f"Failed to get price for {symbol}. Skipping.")
+                continue
 
-                # Calculate the number of shares to buy, limited to 5000
-                quantity = min(int(allocated_funds // stock_price), 10000)
-                if quantity > 0:
-                    self.buy(symbol, quantity)
+            # Allocate funds based on weight
+            allocated_funds = available_balance * weights[symbol]
+            desired_quantity = min(
+                int(allocated_funds // stock_price), self.MAX_VOLUME)
+
+            # Adjust holdings to match the desired quantity
+            current_quantity = self.portfolio.assets.get(
+                symbol, {}).get('quantity', 0)
+            if desired_quantity > current_quantity:
+                self.buy(symbol, min(desired_quantity -
+                         current_quantity, self.MAX_VOLUME))
+            elif desired_quantity < current_quantity:
+                self.sell(symbol, min(current_quantity -
+                          desired_quantity, self.MAX_VOLUME))
 
         # Update the need_rebalance flag
         if self.is_matched_top_stocks():
@@ -174,7 +184,7 @@ class Backtesting:
             daily_return = (
                 current_total_value - self.previous_total_value) / self.previous_total_value
             self.daily_returns.append(daily_return)
-            if daily_return > 0.01:
+            if daily_return > 0.1:
                 logger.warning(
                     f"Daily return is too high: {daily_return:.4f}. "
                     f"Previous value: {self.previous_total_value:.2f},"
@@ -256,7 +266,7 @@ class Backtesting:
 
 if __name__ == '__main__':
     start_date = datetime(2023, 2, 1)
-    end_date = datetime(2023, 12, 31)
+    end_date = datetime(2024, 1, 31)  # the day must be >= 20
     initial_balance = 1000000
 
     backtesting = Backtesting(start_date, end_date, initial_balance)
