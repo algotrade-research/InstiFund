@@ -25,7 +25,7 @@ except Exception as e:
 # Load financial data
 try:
     logger.info("Loading financial data from JSON file.")
-    path = os.path.join(DATA_PATH, "financial_data_with_close_price.csv")
+    path = os.path.join(DATA_PATH, "financial_data.csv")
     FINANCIAL_DF = pd.read_csv(path)
     logger.info(
         f"Financial data loaded successfully with {len(FINANCIAL_DF)} rows.")
@@ -46,4 +46,3 @@ def get_stocks_list() -> List[str]:
     except KeyError as e:
         logger.error(f"Failed to fetch stock symbols: {e}")
         return []
-
