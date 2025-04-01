@@ -227,6 +227,7 @@ def get_financial_data(start_date: datetime, end_date: datetime) -> pd.DataFrame
                 "Revenue (Bn. VND)": "Revenue",
                 "Cash and cash equivalents (Bn. VND)": "Cash",
                 "ROE (%)": "ROE",
+                "LIABILITIES (Bn. VND)": "Liabilities",
             }, inplace=True)
             # Remove data not between start_date and end_date
             stock_df = stock_df[(stock_df["year"] >= start_date.year) &
