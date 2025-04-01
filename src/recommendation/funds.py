@@ -44,16 +44,28 @@ class InstitutionalScoring:
         """
         scores = []
 
-        for symbol in self.symbols:
-            # # logger.debug(
-            #     f"Calculating scores for {symbol} ({self.month}/{self.year})")
-            current = self.FinancialStatement(self.month, self.year, symbol)
-            last_month, last_year = get_last_month(self.month, self.year)
-            last = self.FinancialStatement(last_month, last_year, symbol)
+        # Pre-filter the FUND_DF once for the current and last periods to avoid redundant filtering
+        current_period_df = FUND_DF[
+            (FUND_DF["Date"].dt.month == self.month) & (
+                FUND_DF["Date"].dt.year == self.year)
+        ]
+        last_month, last_year = get_last_month(self.month, self.year)
+        last_period_df = FUND_DF[
+            (FUND_DF["Date"].dt.month == last_month) & (
+                FUND_DF["Date"].dt.year == last_year)
+        ]
 
-            if current.data.empty or last.data.empty:
-                # logger.debug(
-                # f"No data available for {symbol} ({self.month}/{self.year}). Skipping.")
+        # Group data by symbol for faster access
+        current_grouped = current_period_df.groupby("Category")
+        last_grouped = last_period_df.groupby("Category")
+
+        for symbol in self.symbols:
+            current_data = current_grouped.get_group(
+                symbol) if symbol in current_grouped.groups else pd.DataFrame()
+            last_data = last_grouped.get_group(
+                symbol) if symbol in last_grouped.groups else pd.DataFrame()
+
+            if current_data.empty or last_data.empty:
                 scores.append({
                     "symbol": symbol,
                     "fund_net_buying": 0.0,
@@ -63,29 +75,23 @@ class InstitutionalScoring:
                 continue
 
             try:
-                fund_net_buying = (current.data["Value"].sum(
-                ) - last.data["Value"].sum()) / last.data["Value"].sum()
+                fund_net_buying = (current_data["Value"].sum(
+                ) - last_data["Value"].sum()) / last_data["Value"].sum()
             except ZeroDivisionError:
                 logger.error(
                     f"Division by zero encountered for {symbol} ({self.month}/{self.year})")
                 fund_net_buying = 0.0
 
-            number_fund_holdings = len(current.data)
+            number_fund_holdings = len(current_data)
 
             # Calculate net fund change
-            net_fund_change = 0
-            merged_df = pd.merge(current.data, last.data, on="Fund Code",
-                                 how="outer", suffixes=("_current", "_last"))
-            merged_df = merged_df.fillna(0)
-            net_fund_change += len(
-                merged_df[merged_df["Value_current"] > merged_df["Value_last"]])
-            net_fund_change -= len(
-                merged_df[merged_df["Value_current"] < merged_df["Value_last"]])
-
-            # logger.debug(f"Scores for {symbol} ({self.month}/{self.year}): "
-            #              f"fund_net_buying={fund_net_buying}, "
-            #              f"number_fund_holdings={number_fund_holdings}, "
-            #              f"net_fund_change={net_fund_change}")
+            merged_df = pd.merge(
+                current_data, last_data, on="Fund Code", how="outer", suffixes=("_current", "_last")
+            ).fillna(0)
+            net_fund_change = (
+                (merged_df["Value_current"] > merged_df["Value_last"]).sum() -
+                (merged_df["Value_current"] < merged_df["Value_last"]).sum()
+            )
 
             scores.append({
                 "symbol": symbol,
