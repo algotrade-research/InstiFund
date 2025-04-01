@@ -46,7 +46,7 @@ class MarketSimulation:
         """Load market data from a CSV file."""
         file_path = f"{DATA_PATH}/daily_data.csv"
         try:
-            logger.info(f"Loading market data from {file_path}")
+            logger.debug(f"Loading market data from {file_path}")
             df = pd.read_csv(file_path, parse_dates=['datetime'])
             df['datetime'] = pd.to_datetime(df['datetime'])
             logger.info("Market data loaded successfully.")
@@ -83,7 +83,7 @@ class MarketSimulation:
         price = self.current_data[self.current_data['tickersymbol']
                                   == symbol]['price'].values[0]
         total_cost = price * quantity * (1 + self.TRADING_FEE)
-        logger.debug(f"Buying {quantity} shares of {symbol} at {price} each.")
+        # logger.debug(f"Buying {quantity} shares of {symbol} at {price} each.")
         return {
             'symbol': symbol,
             'quantity': quantity,
@@ -187,6 +187,6 @@ class MarketSimulation:
             return 0.0
         # Get the last price before the current date
         last_price = last_price_data.iloc[0]['price']
-        logger.debug(
-            f"Last price for {symbol} before {last_date}: {last_price}")
+        # logger.debug(
+        #     f"Last price for {symbol} before {last_date}: {last_price}")
         return last_price

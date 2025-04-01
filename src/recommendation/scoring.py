@@ -68,13 +68,13 @@ class StocksRanking:
         df["debt_to_equity"] = df["debt_to_equity"].clip(
             lower=0.0, upper=2.0)  # Cap at 2.0 for normalization
 
-        # Normalize cash ratio: less deviation from the mean is better
-        df["cash_ratio_normalized"] = df["cash_ratio"].apply(
-            lambda x: 1 - abs(x - df["cash_ratio"].mean()
-                              ) / df["cash_ratio"].std()
-        )
-        df["cash_ratio_normalized"] = df["cash_ratio_normalized"].clip(
-            lower=0.0, upper=1.0)
+        # # Normalize cash ratio: less deviation from the mean is better
+        # df["cash_ratio_normalized"] = df["cash_ratio"].apply(
+        #     lambda x: 1 - abs(x - df["cash_ratio"].mean()
+        #                       ) / df["cash_ratio"].std()
+        # )
+        # df["cash_ratio_normalized"] = df["cash_ratio_normalized"].clip(
+        #     lower=0.0, upper=1.0)
         # P/E ratio score: (revenue_growth - pe) / revenue_growth
         df["pe_score"] = (df["revenue_growth"] - df["pe"]) / \
             df["revenue_growth"]
@@ -93,14 +93,13 @@ class StocksRanking:
             "roe_normalized",
             "revenue_growth_normalized",
             "debt_to_equity_normalized",
-            "cash_ratio_normalized",
+            # "cash_ratio_normalized",
             "pe_score_normalized",
         ]
         df["fin_score"] = (
             0.30 * df["roe_normalized"] +
-            0.15 * df["revenue_growth_normalized"] +
-            0.10 * df["debt_to_equity_normalized"] +
-            0.10 * df["cash_ratio_normalized"] +
+            0.20 * df["revenue_growth_normalized"] +
+            0.15 * df["debt_to_equity_normalized"] +
             0.35 * df["pe_score_normalized"]
         )
 

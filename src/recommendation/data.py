@@ -1,18 +1,12 @@
-from src.settings import DATA_PATH
+from src.settings import DATA_PATH, logger
 import pandas as pd
 from typing import List
-import logging
-import logging.config
 import os
 
-# Load logging configuration
-logging.config.fileConfig(os.path.join(
-    os.path.dirname(__file__), "../../config/logging.conf"))
-logger = logging.getLogger("my_logger")
 
 # Temporary for VCBF funds
 try:
-    logger.info("Loading fund portfolios data from JSON file.")
+    logger.debug("Loading fund portfolios data from JSON file.")
     path = os.path.join(DATA_PATH, "VCBF/fund_portfolios.csv")
     FUND_DF = pd.read_csv(path)
     FUND_DF["Date"] = pd.to_datetime(FUND_DF["Date"], format="%Y-%m-%d")
@@ -24,7 +18,7 @@ except Exception as e:
 
 # Load financial data
 try:
-    logger.info("Loading financial data from JSON file.")
+    logger.debug("Loading financial data from JSON file.")
     path = os.path.join(DATA_PATH, "financial_data.csv")
     FINANCIAL_DF = pd.read_csv(path)
     logger.info(

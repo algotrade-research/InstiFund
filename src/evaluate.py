@@ -11,7 +11,7 @@ def get_vnindex_benchmark(start_date: datetime, end_date: datetime
     """
     Get VNINDEX benchmark data from vnstock API.
     """
-    logger.info(
+    logger.debug(
         f"Fetching VNINDEX benchmark data from {start_date} to {end_date}.")
     vnindex = vnstock.quote.history(symbol="VNINDEX",
                                     start=start_date.strftime("%Y-%m-%d"),
@@ -23,7 +23,7 @@ def get_vnindex_benchmark(start_date: datetime, end_date: datetime
     vnindex["datetime"] = pd.to_datetime(vnindex["datetime"])
     vnindex.set_index("datetime", inplace=True)
     vnindex.sort_index(inplace=True)
-    logger.info(
+    logger.debug(
         f"VNINDEX benchmark data fetched successfully with {len(vnindex)} rows.")
     return vnindex
 

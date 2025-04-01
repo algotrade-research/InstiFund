@@ -1,3 +1,5 @@
 crawler_cool_down: 4
 trading_fee: 0.0047
 risk_free_rate_annual: 0.05
+disable_logging: False
+debug: False

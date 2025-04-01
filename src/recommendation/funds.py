@@ -2,14 +2,8 @@ from src.recommendation.data import FUND_DF
 import os
 import pandas as pd
 from src.utitlies import get_last_month
+from src.settings import logger
 from typing import Tuple, List
-import logging
-import logging.config
-
-# Load logging configuration
-logging.config.fileConfig(os.path.join(
-    os.path.dirname(__file__), "../../config/logging.conf"))
-logger = logging.getLogger("my_logger")
 
 
 class InstitutionalScoring:

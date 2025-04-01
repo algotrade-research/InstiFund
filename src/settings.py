@@ -11,7 +11,11 @@ import yaml
 env_path = Path(__file__).parent / ".env"
 load_dotenv(env_path)
 
-DEBUG = True
+CONFIG_YAML_PATH = Path(__file__).parent.parent / "config" / "config.yaml"
+with open(CONFIG_YAML_PATH, "r") as file:
+    config = yaml.safe_load(file)
+
+DEBUG = config.get("debug", True)
 
 # Database connection
 DATABASE = {
@@ -29,10 +33,8 @@ LOGGING_CONFIG_PATH = Path(__file__).parent.parent / "config" / "logging.conf"
 logging.config.fileConfig(LOGGING_CONFIG_PATH, defaults={
                           'sys.stdout': sys.stdout})
 logger = logging.getLogger("my_logger")
+logger.setLevel(logging.DEBUG if DEBUG else logging.INFO)
+logger.disabled = config.get("disable_logging", False)
 
 # Init Vnstock
 vnstock = Vnstock().stock(symbol="ACB", source="VCI")
-
-CONFIG_YAML_PATH = Path(__file__).parent.parent / "config" / "config.yaml"
-with open(CONFIG_YAML_PATH, "r") as file:
-    config = yaml.safe_load(file)

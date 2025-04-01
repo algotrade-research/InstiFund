@@ -4,7 +4,7 @@ from src.market.simulation import MarketSimulation
 from src.market.portfolio import Portfolio
 from src.evaluate import Evaluate
 from datetime import datetime
-from src.settings import logger, DATA_PATH
+from src.settings import logger, DATA_PATH, config
 import numpy as np
 import pandas as pd
 from typing import List, Dict
@@ -42,7 +42,7 @@ class Backtesting:
             asset, quantity, sell_info['total_revenue'], sell_info['price'],
             sell_info['date']
         )
-        logger.info(
+        logger.debug(
             f"Sold {quantity} shares of {asset} at {sell_info['price']} each."
             f" Realized P/L: {realized_pl:.2f}")
         return True
@@ -55,7 +55,7 @@ class Backtesting:
         self.portfolio.add_asset(
             symbol, quantity, buy_info['total_cost'], buy_info['price'], buy_info['date']
         )
-        logger.info(
+        logger.debug(
             f"Bought {quantity} shares of {symbol} at {buy_info['price']} each.")
         return True
 
@@ -176,26 +176,27 @@ class Backtesting:
 
         # Check take profit condition
         if price_change >= self.TAKE_PROFIT:
-            logger.info(
+            logger.debug(
                 f"Take profit triggered for {asset}. Current price: {current_price}, Purchase price: {purchase_price}")
             return True
 
         # Check trailing stop loss condition
         peak_price = self.peak_prices.get(asset, current_price)
         if (current_price - peak_price) / peak_price <= -self.TRAILING_STOP_LOSS:
-            logger.info(
+            logger.debug(
                 f"Trailing stop loss triggered for {asset}. Current price: {current_price}, Peak price: {peak_price}")
             self.need_rebalance = True
             return True
 
         return False
 
-    def run(self):
+    def run(self, disable_logging: bool = False):
+        logger.disabled = disable_logging
         logger.info("Starting backtesting process.")
         last_month = self.simulation.current_date.month
         while True:
             if not self.simulation.step():
-                logger.info("Simulation completed.")
+                logger.warning("Simulation completed before selling all.")
                 break
             if self.simulation.current_date.month != last_month:
                 last_month = self.simulation.current_date.month
@@ -248,6 +249,7 @@ class Backtesting:
             if self.simulation.current_date.day >= self.RELEASE_DAY\
                     and self.need_rebalance:
                 self.rebalance_portfolio()
+        logger.disabled = config.get("disable_logging", False)
 
     def evaluate(self, result_dir: str):
         """
