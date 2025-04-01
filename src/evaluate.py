@@ -1,8 +1,9 @@
-from src.settings import config, vnstock
+from src.settings import config, vnstock, logger
 from matplotlib import pyplot as plt
 from datetime import datetime
 import pandas as pd
 import json
+from typing import Dict, Any
 
 
 def get_vnindex_benchmark(start_date: datetime, end_date: datetime
@@ -10,10 +11,11 @@ def get_vnindex_benchmark(start_date: datetime, end_date: datetime
     """
     Get VNINDEX benchmark data from vnstock API.
     """
+    logger.info(
+        f"Fetching VNINDEX benchmark data from {start_date} to {end_date}.")
     vnindex = vnstock.quote.history(symbol="VNINDEX",
                                     start=start_date.strftime("%Y-%m-%d"),
-                                    end=end_date.strftime("%Y-%m-%d"),
-                                    lang="en")
+                                    end=end_date.strftime("%Y-%m-%d"))
     vnindex = vnindex[["time", "close"]].copy()
     vnindex.rename(columns={
         "time": "datetime",
@@ -21,6 +23,8 @@ def get_vnindex_benchmark(start_date: datetime, end_date: datetime
     vnindex["datetime"] = pd.to_datetime(vnindex["datetime"])
     vnindex.set_index("datetime", inplace=True)
     vnindex.sort_index(inplace=True)
+    logger.info(
+        f"VNINDEX benchmark data fetched successfully with {len(vnindex)} rows.")
     return vnindex
 
 
@@ -93,7 +97,7 @@ class Evaluate:
         Calculate the annualized return.
         Annualized Return = (1 + Total Return) ^ (1 / Number of Years) - 1
         """
-        total_return = self.calculate_roi() / 100
+        total_return = self.get_roi() / 100
         num_years = (self.data.index[-1] - self.data.index[0]).days / 365.25
         annualized_return = (1 + total_return) ** (1 / num_years) - 1
         return annualized_return * 100
@@ -211,11 +215,6 @@ class Evaluate:
             # If no benchmark data is provided, use VNINDEX as default
             benchmark_data = get_vnindex_benchmark(
                 self.data.index[0], self.data.index[-1])
-        # Ensure the benchmark data has the same date range as the strategy data
-        benchmark_data["datetime"] = pd.to_datetime(
-            benchmark_data["datetime"])
-        benchmark_data.set_index("datetime", inplace=True)
-        benchmark_data.sort_index(inplace=True)
 
         # Merge the two DataFrames on the datetime index
         comparison_df = pd.merge(self.data, benchmark_data,
@@ -223,10 +222,10 @@ class Evaluate:
                                  suffixes=('', '_benchmark'))
 
         # Calculate daily returns for both strategy and benchmark
-        comparison_df["daily_return"] = comparison_df["total_assets"].pct_change()
-        comparison_df["daily_return_benchmark"] = comparison_df[
-            "total_assets_benchmark"].pct_change()
-
+        comparison_df["cummulative_return"] = (
+            comparison_df["total_assets"] / comparison_df["total_assets"].iloc[0]) - 1
+        comparison_df["cummulative_return_benchmark"] = (
+            comparison_df["total_assets_benchmark"] / comparison_df["total_assets_benchmark"].iloc[0]) - 1
         return comparison_df
 
     def get_cash_flow(self) -> pd.DataFrame:
@@ -259,6 +258,7 @@ class Evaluate:
         Plot and save daily returns.
         """
         plt.figure()
+        self.get_daily_returns()
         self.data["daily_returns"].plot(title="Daily Returns")
         plt.xlabel("Date")
         plt.ylabel("Daily Returns")
@@ -271,6 +271,7 @@ class Evaluate:
         Plot and save cumulative returns.
         """
         plt.figure()
+        self.get_cumulative_returns()
         self.data["cumulative_returns"].plot(title="Cumulative Returns")
         plt.xlabel("Date")
         plt.ylabel("Cumulative Returns")
@@ -297,6 +298,7 @@ class Evaluate:
         Plot and save cash flow.
         """
         plt.figure()
+        self.get_cash_flow()
         self.data["cash_flow"].plot(title="Cash Flow")
         plt.xlabel("Date")
         plt.ylabel("Cash Flow")
@@ -311,11 +313,12 @@ class Evaluate:
         """
         comparison_df = self.get_benchmark_comparison(benchmark_data)
         plt.figure()
-        comparison_df[["daily_return", "daily_return_benchmark"]].plot(
+        comparison_df[["cummulative_return", "cummulative_return_benchmark"]].plot(
             title="Benchmark Comparison")
         plt.xlabel("Date")
         plt.ylabel("Daily Returns")
-        plt.legend(["Strategy", "Benchmark"])
+        plt.legend(["Strategy", "Benchmark (default: VNINDEX)"])
+        plt.grid()
         plt.tight_layout()
         plt.savefig(f"{result_dir}/benchmark_comparison.png")
         plt.close()
@@ -330,29 +333,32 @@ class Evaluate:
         self.plot_drawdown(result_dir)
         self.plot_cash_flow(result_dir)
         self.plot_benchmark_comparison(benchmark_data, result_dir)
+        logger.info(
+            f"All evaluation plots saved to {result_dir}.")
 
     def save_evaluation_results(self, result_dir: str) -> None:
         """
         Save evaluation results to a JSON file.
         """
         evaluation_results = {
-            "ROI": self.get_roi(),
-            "Total P&L": self.get_total_pnl(),
-            "Annualized Return": self.get_annualized_return(),
-            "Sharpe Ratio": self.get_sharpe_ratio(),
-            "Sortino Ratio": self.get_sortino_ratio(),
-            "Calmar Ratio": self.get_calmar_ratio(),
-            "Max Drawdown": self.get_max_drawdown(),
-            "CAGR": self.get_cagr(),
-            "Win Rate": self.get_win_rate(),
-            "Expected Return": self.get_expected_return(),
-            "Volatility": self.get_volatility(),
-            "Max Time to Recover": self.get_max_time_to_recover()
+            "ROI": float(self.get_roi()),
+            "Total P&L": float(self.get_total_pnl()),
+            "Annualized Return": float(self.get_annualized_return()),
+            "Sharpe Ratio": float(self.get_sharpe_ratio()),
+            "Sortino Ratio": float(self.get_sortino_ratio()),
+            "Calmar Ratio": float(self.get_calmar_ratio()),
+            "Max Drawdown": float(self.get_max_drawdown()),
+            "CAGR": float(self.get_cagr()),
+            "Win Rate": float(self.get_win_rate()),
+            "Expected Return": float(self.get_expected_return()),
+            "Volatility": float(self.get_volatility()),
+            "Max Time to Recover": int(self.get_max_time_to_recover()),
         }
 
+        # Save the results to a JSON file
         with open(f"{result_dir}/{self.name}_evaluation.json", 'w') as f:
             json.dump(evaluation_results, f, indent=4)
-        print(
+        logger.info(
             f"Evaluation results saved to {result_dir}/{self.name}_evaluation.json")
 
     def evaluate(self, result_dir: str) -> None:
@@ -362,4 +368,19 @@ class Evaluate:
         Export plots to the specified directory.
         """
         self.save_evaluation_results(result_dir)
-        self.plot_all(self.data, result_dir)
+        self.plot_all(benchmark_data=None, result_dir=result_dir)
+
+    def quick_evaluate(self) -> Dict[str, Any]:
+        """
+        Quickly evaluate the performance of the trading strategy.
+        Return the evaluation results as a dictionary.
+        - Total P&L
+        - Sharpe Ratio
+        - Maximum Drawdown
+        """
+        evaluation_results = {
+            "Total P&L": self.get_total_pnl(),
+            "Sharpe Ratio": self.get_sharpe_ratio(),
+            "Maximum Drawdown": self.get_max_drawdown(),
+        }
+        return evaluation_results

@@ -2,12 +2,11 @@ from src.recommendation.scoring import StocksRanking
 from src.recommendation.data import get_stocks_list
 from src.market.simulation import MarketSimulation
 from src.market.portfolio import Portfolio
+from src.evaluate import Evaluate
 from datetime import datetime
-from src.utitlies import get_last_month
-from src.settings import logger, DATA_PATH, vnstock
+from src.settings import logger, DATA_PATH
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from typing import List, Dict
 
 
@@ -16,7 +15,7 @@ class Backtesting:
     MAX_VOLUME = 20000  # Maximum volume of stocks to buy/sell in one transaction
     NUMBER_OF_STOCKS = 3  # Number of stocks to keep in the portfolio
     TRAILING_STOP_LOSS = 0.5  # 10% loss threshold to trigger a sell
-    TAKE_PROFIT = 0.30  # 20% profit threshold to trigger a sell
+    TAKE_PROFIT = 0.25  # 20% profit threshold to trigger a sell
 
     def __init__(self, start_date: datetime, end_date: datetime, initial_balance: float):
         self.start_date = start_date
@@ -26,11 +25,11 @@ class Backtesting:
         self.daily_returns = []  # Track portfolio daily returns
         self.trading_days = []
         self.stocks = get_stocks_list()
-        # Track the previous day's total portfolio value
         self.previous_total_value = initial_balance
         self.top_stocks = []  # Top stocks for rebalancing
         self.need_rebalance = True
         self.peak_prices = {}  # Track the peak price of each stock in the portfolio
+        self.portfolio_statistics = []  # Store portfolio statistics for evaluation
 
     def sell(self, asset, quantity):
         sell_info = self.simulation.sell_stock(asset, quantity)
@@ -59,49 +58,6 @@ class Backtesting:
         logger.info(
             f"Bought {quantity} shares of {symbol} at {buy_info['price']} each.")
         return True
-
-    @staticmethod
-    def calculate_sharpe_ratio(daily_returns, risk_free_rate_annually=0.045):
-        """
-        Calculate the Sharpe ratio based on daily returns.
-        :param daily_returns: List of daily returns.
-        :param risk_free_rate: Risk-free rate (default is 0.0045 -- Vietnamese bank interest rate).
-        :return: Sharpe ratio.
-        """
-        risk_free_rate_daily = risk_free_rate_annually / 252
-        excess_returns = np.array(daily_returns) - risk_free_rate_daily
-        if np.std(excess_returns) == 0:
-            return 0.0
-        return np.mean(excess_returns) / np.std(excess_returns, ddof=1) * np.sqrt(252)
-
-    @staticmethod
-    def calculate_maximum_drawdown(daily_returns):
-        """
-        Calculate the maximum drawdown based on daily returns.
-        :param daily_returns: List of daily returns.
-        :return: Maximum drawdown as a percentage.
-        """
-        cumulative_returns = np.cumprod(1 + np.array(daily_returns)) - 1
-        peak = -np.inf
-        max_drawdown = 0
-        for value in cumulative_returns:
-            peak = max(peak, value)
-            drawdown = (peak - value) / (peak + 1) if peak != 0 else 0
-            max_drawdown = max(max_drawdown, drawdown)
-        return max_drawdown * 100
-
-    def print_statistics(self):
-        sharpe_ratio = self.calculate_sharpe_ratio(self.daily_returns)
-        max_drawdown = self.calculate_maximum_drawdown(self.daily_returns)
-        # Calculate cumulative return
-        cumulative_return = (1 + np.array(self.daily_returns)).prod() - 1
-
-        logger.info(f"Portfolio balance: {self.portfolio.balance}")
-        logger.info(f"Realized P/L: {self.portfolio.realized_profit_loss}")
-        logger.info(f"Sharpe Ratio: {sharpe_ratio:.2f}")
-        logger.info(f"Maximum Drawdown: {max_drawdown:.2f}%")
-        # Log cumulative return
-        logger.info(f"Cumulative Return: {cumulative_return:.2f}%")
 
     def is_matched_top_stocks(self) -> bool:
         """
@@ -240,7 +196,6 @@ class Backtesting:
         while True:
             if not self.simulation.step():
                 logger.info("Simulation completed.")
-                self.print_statistics()
                 break
             if self.simulation.current_date.month != last_month:
                 last_month = self.simulation.current_date.month
@@ -253,11 +208,15 @@ class Backtesting:
             daily_return = (
                 current_total_value - self.previous_total_value) / self.previous_total_value
             self.daily_returns.append(daily_return)
-            if daily_return > 0.1:
-                logger.warning(
-                    f"Daily return is too high: {daily_return:.4f}. "
-                    f"Previous value: {self.previous_total_value:.2f},"
-                    f" Current value: {current_total_value:.2f}")
+            self.portfolio_statistics.append({
+                "datetime": self.simulation.current_date,
+                "total_assets": current_total_value,
+                "cash": self.portfolio.balance,
+                "number_of_trades": len(self.portfolio.transactions),
+                "number_of_winners": sum(1 for t in self.portfolio.transactions if t['action'] == 'sell' and t['realized_pl'] > 0),
+                "sum_of_winners": sum(t['realized_pl'] for t in self.portfolio.transactions if t['action'] == 'sell' and t['realized_pl'] > 0),
+                "sum_of_losers": sum(t['realized_pl'] for t in self.portfolio.transactions if t['action'] == 'sell' and t['realized_pl'] < 0),
+            })
 
             self.previous_total_value = current_total_value
             self.trading_days.append(
@@ -283,8 +242,6 @@ class Backtesting:
                 for asset in current_assets:
                     quantity = self.portfolio.assets[asset]['quantity']
                     self.sell(asset, quantity)
-                logger.info("Final portfolio statistics:")
-                self.print_statistics()
                 break
 
             # Rebalance the portfolio on the 8th day of each month
@@ -292,82 +249,13 @@ class Backtesting:
                     and self.need_rebalance:
                 self.rebalance_portfolio()
 
-            # Log the portfolio statistics
-            # logger.debug(
-                # f"Realized P/L so far: {self.portfolio.realized_profit_loss}")
-
-    def save_results(self, file_path: str = DATA_PATH + "/backtest_results.csv"):
+    def evaluate(self, result_dir: str):
         """
-        Save the daily returns, cumulative returns, VNINDEX data, and maximum drawdown plot to files.
+        Evaluate the backtesting results using the Evaluate class.
         """
-        if not self.daily_returns:
-            logger.warning("No daily returns to save.")
-            return
-
-        # Create a DataFrame for portfolio returns
-        df = pd.DataFrame({
-            'Date': self.trading_days,
-            'Daily Return': self.daily_returns
-        })
-        df['Date'] = pd.to_datetime(df['Date'])
-        df.set_index('Date', inplace=True)
-        df['Cumulative Return'] = (1 + df['Daily Return']).cumprod() - 1
-
-        # Add VNINDEX data
-        vnindex_hist = vnstock.quote.history(symbol="VNINDEX",
-                                             start=self.start_date.strftime(
-                                                 "%Y-%m-%d"),
-                                             end=self.end_date.strftime(
-                                                 "%Y-%m-%d"),
-                                             interval="1D")
-        vnindex_hist = vnindex_hist.rename(
-            columns={"close": "VNINDEX"}).reset_index()
-        vnindex_hist['Date'] = pd.to_datetime(vnindex_hist['time'])
-        vnindex_hist.set_index('Date', inplace=True)
-        vnindex_hist = vnindex_hist.reindex(df.index, method='ffill')
-        df['VNINDEX'] = vnindex_hist['VNINDEX']
-        df['VNINDEX Daily Return'] = df['VNINDEX'].pct_change()
-        df['VNINDEX Cumulative Return'] = (
-            1 + df['VNINDEX Daily Return']).cumprod() - 1
-
-        # Save the results to a CSV file
-        df.to_csv(file_path, index=True)
-
-        # Export cumulative return plot with VNINDEX
-        plt.figure(figsize=(10, 6))
-        plt.plot(df.index, df['Cumulative Return'],
-                 label='Portfolio Cumulative Return')
-        plt.plot(df.index, df['VNINDEX Cumulative Return'],
-                 label='VNINDEX Cumulative Return', linestyle='--')
-        plt.title('Cumulative Return vs VNINDEX')
-        plt.xlabel('Date')
-        plt.ylabel('Cumulative Return')
-        plt.legend()
-        plt.grid()
-        plt.tight_layout()
-        plt.savefig(file_path.replace('.csv', '_cumulative_return.png'))
-        plt.close()
-
-        # Export maximum drawdown plot
-        max_drawdown = self.calculate_maximum_drawdown(self.daily_returns)
-        cumulative_returns = (1 + np.array(self.daily_returns)).cumprod() - 1
-        drawdowns = [(peak - value) / (peak + 1) if peak != 0 else 0
-                     for peak, value in
-                     zip(np.maximum.accumulate(cumulative_returns),
-                         cumulative_returns)]
-        plt.figure(figsize=(10, 6))
-        plt.plot(df.index, drawdowns, label='Drawdown')
-        plt.title(f'Maximum Drawdown: {max_drawdown:.2f}%')
-        plt.xlabel('Date')
-        plt.ylabel('Drawdown')
-        plt.legend()
-        plt.grid()
-        plt.tight_layout()
-        plt.savefig(file_path.replace('.csv', '_max_drawdown.png'))
-        plt.close()
-
-        logger.info(
-            f"Results saved to {file_path} and associated plots exported.")
+        evaluation_data = pd.DataFrame(self.portfolio_statistics)
+        evaluator = Evaluate(evaluation_data, name="backtest")
+        evaluator.evaluate(result_dir)
 
 
 if __name__ == '__main__':
@@ -377,4 +265,4 @@ if __name__ == '__main__':
 
     backtesting = Backtesting(start_date, end_date, initial_balance)
     backtesting.run()
-    backtesting.save_results()
+    backtesting.evaluate(result_dir=DATA_PATH)
