@@ -4,6 +4,8 @@ from dotenv import load_dotenv
 from pathlib import Path
 import logging
 import logging.config
+from vnstock import Vnstock
+import yaml
 
 # Load .env file
 env_path = Path(__file__).parent / ".env"
@@ -28,5 +30,9 @@ logging.config.fileConfig(LOGGING_CONFIG_PATH, defaults={
                           'sys.stdout': sys.stdout})
 logger = logging.getLogger("my_logger")
 
+# Init Vnstock
+vnstock = Vnstock().stock(symbol="ACB", source="VCI")
 
-TRADING_FEE = float(os.getenv("TRADING_FEE", 0.0047))  # Default: 0.35% + 0.12%
+CONFIG_YAML_PATH = Path(__file__).parent.parent / "config" / "config.yaml"
+with open(CONFIG_YAML_PATH, "r") as file:
+    config = yaml.safe_load(file)

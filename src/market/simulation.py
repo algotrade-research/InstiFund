@@ -1,4 +1,4 @@
-from src.settings import logger, DATA_PATH, TRADING_FEE
+from src.settings import logger, DATA_PATH, config
 from src.market.portfolio import Portfolio
 from datetime import datetime
 from typing import List, Dict, Any
@@ -16,6 +16,7 @@ class MarketSimulation:
         self.start_date = start_date
         self.end_date = end_date
         self.market_data = self.load_market_data()
+        self.TRADING_FEE = config["trading_fee"]
 
         # Filter trading days between start_date and end_date
         self.trading_days = self.market_data[
@@ -81,7 +82,7 @@ class MarketSimulation:
             return {}
         price = self.current_data[self.current_data['tickersymbol']
                                   == symbol]['price'].values[0]
-        total_cost = price * quantity * (1 + TRADING_FEE)
+        total_cost = price * quantity * (1 + self.TRADING_FEE)
         logger.debug(f"Buying {quantity} shares of {symbol} at {price} each.")
         return {
             'symbol': symbol,
@@ -101,7 +102,7 @@ class MarketSimulation:
             return {}
         price = self.current_data[self.current_data['tickersymbol']
                                   == symbol]['price'].values[0]
-        total_revenue = price * quantity * (1 - TRADING_FEE)
+        total_revenue = price * quantity * (1 - self.TRADING_FEE)
         logger.debug(f"Selling {quantity} shares of {symbol} at {price} each.")
         return {
             'symbol': symbol,
@@ -151,7 +152,7 @@ class MarketSimulation:
             total_value += current_value
 
             # Calculate unrealized profit/loss considering the trading fee
-            effective_price = price * (1 - TRADING_FEE)
+            effective_price = price * (1 - self.TRADING_FEE)
             unrealized_profit_loss += (effective_price -
                                        average_price) * quantity
 

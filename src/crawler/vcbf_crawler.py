@@ -1,3 +1,4 @@
+from src.settings import config
 import os
 import requests
 from bs4 import BeautifulSoup
@@ -30,8 +31,7 @@ class VCBFCrawler():
     SHEET_NAME = "BCDanhMucDauTu_06029"
 
     def __init__(self):
-        with open("../../config/config.yaml", "r") as f:
-            self.COOL_DOWN = yaml.safe_load(f)["crawler_cool_down"]
+        self.COOL_DOWN = config["crawler_cool_down"]
 
     def get_financial_statement_links(self, save_dir):
         page = 1
