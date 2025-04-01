@@ -134,7 +134,7 @@ class Backtesting:
 
         # Buy or adjust holdings for the top stocks
         for symbol in self.top_stocks:
-            stock_price = self.simulation.get_last_day_stock_price(
+            stock_price = self.simulation.get_last_available_price(
                 symbol) * 1.01
             if not stock_price or stock_price <= 0:
                 logger.warning(f"Failed to get price for {symbol}. Skipping.")
@@ -173,7 +173,7 @@ class Backtesting:
             return False
 
         purchase_price = asset_data['average_price']
-        current_price = self.simulation.get_last_day_stock_price(asset)
+        current_price = self.simulation.get_last_available_price(asset)
 
         if current_price is None or current_price <= 0:
             logger.warning(
@@ -197,7 +197,7 @@ class Backtesting:
         if (current_price - peak_price) / peak_price <= -self.TRAILING_STOP_LOSS:
             logger.debug(
                 f"Trailing stop loss triggered for {asset}. Current price: {current_price}, Peak price: {peak_price}")
-            self.need_rebalance = True
+            # self.need_rebalance = True
             return True
 
         return False

@@ -18,18 +18,9 @@ class MarketSimulation:
         self.market_data = self.load_market_data()
         self.TRADING_FEE = config["trading_fee"]
 
-        # Filter trading days between start_date and end_date
-        self.trading_days = self.market_data[
-            (self.market_data['datetime'] >= self.start_date) &
-            (self.market_data['datetime'] <= self.end_date)
-        ]['datetime'].unique()
-        # Use np.sort() to sort the DatetimeArray
-        self.trading_days = np.sort(self.trading_days)
-        # Convert to datetime.date for easier comparison
-        self.trading_days = [pd.to_datetime(
-            date) for date in self.trading_days]
-
-        if len(self.trading_days) == 0:
+        # Precompute trading days and filter market data for the date range
+        self.trading_days = self._get_trading_days()
+        if not self.trading_days:
             raise ValueError(
                 "No trading days available in the specified date range.")
 
@@ -38,9 +29,13 @@ class MarketSimulation:
         self.current_date = self.trading_days[self.current_trading_day_index]
         self.current_data = self.get_current_stock_data()
 
-    def is_trading_day(self) -> bool:
-        """Check if the current date is a trading day."""
-        return self.current_date in self.trading_days
+    def _get_trading_days(self) -> List[datetime]:
+        """Retrieve and sort trading days within the specified date range."""
+        trading_days = self.market_data[
+            (self.market_data['datetime'] >= self.start_date) &
+            (self.market_data['datetime'] <= self.end_date)
+        ]['datetime'].drop_duplicates().sort_values()
+        return trading_days.tolist()
 
     def load_market_data(self) -> pd.DataFrame:
         """Load market data from a CSV file."""
@@ -48,7 +43,6 @@ class MarketSimulation:
         try:
             logger.debug(f"Loading market data from {file_path}")
             df = pd.read_csv(file_path, parse_dates=['datetime'])
-            df['datetime'] = pd.to_datetime(df['datetime'])
             logger.info("Market data loaded successfully.")
             return df
         except Exception as e:
@@ -60,8 +54,6 @@ class MarketSimulation:
         if self.current_trading_day_index + 1 < len(self.trading_days):
             self.current_trading_day_index += 1
             self.current_date = self.trading_days[self.current_trading_day_index]
-            # logger.info(
-            # f"Advanced to {self.current_date.strftime('%Y-%m-%d')}")
             self.current_data = self.get_current_stock_data()
             return True
         else:
@@ -70,7 +62,7 @@ class MarketSimulation:
 
     def get_current_stock_data(self) -> pd.DataFrame:
         """Get the market data for the current date."""
-        return self.market_data[self.market_data['datetime'] == self.current_date].reset_index(drop=True)
+        return self.market_data[self.market_data['datetime'] == self.current_date]
 
     def buy_stock(self, symbol: str, quantity: int) -> Dict[str, Any]:
         """Simulate buying a stock."""
@@ -83,7 +75,6 @@ class MarketSimulation:
         price = self.current_data[self.current_data['tickersymbol']
                                   == symbol]['price'].values[0]
         total_cost = price * quantity * (1 + self.TRADING_FEE)
-        # logger.debug(f"Buying {quantity} shares of {symbol} at {price} each.")
         return {
             'symbol': symbol,
             'quantity': quantity,
@@ -112,40 +103,42 @@ class MarketSimulation:
             'date': self.current_date
         }
 
+    def get_last_available_price(self, asset: str) -> float:
+        """
+        Get the last available price for a given asset before the current date.
+        """
+        asset_data = self.market_data[
+            (self.market_data['tickersymbol'] == asset) &
+            (self.market_data['datetime'] <= self.current_date)
+        ].sort_values('datetime', ascending=False)
+
+        if asset_data.empty:
+            logger.error(
+                f"Asset {asset} not found in market data before {self.current_date}.")
+            return 0.0
+
+        return asset_data.iloc[0]['price']
+
     def get_portfolio_statistics(self, portfolio: Portfolio) -> Dict[str, Any]:
         """
         Get the current total value, unrealized profit/loss, and realized profit/loss of the portfolio.
         """
-        total_value = 0.0
+        total_value = portfolio.balance  # Start with the portfolio's cash balance
         unrealized_profit_loss = 0.0
+
+        # Precompute a price lookup dictionary for current data
+        price_lookup = self.current_data.set_index('tickersymbol')[
+            'price'].to_dict()
 
         for asset, asset_data in portfolio.assets.items():
             quantity = asset_data['quantity']
             average_price = asset_data['average_price']
 
-            if self.current_data.empty:
-                logger.warning(
-                    "No market data available for the current date.")
+            # Get the current price or fallback to the last available price
+            price = price_lookup.get(
+                asset, self.get_last_available_price(asset))
+            if price == 0.0:
                 continue
-            try:
-                price = self.current_data[self.current_data['tickersymbol']
-                                          == asset]['price'].values[0]
-            except IndexError:
-                logger.debug(
-                    f"Asset {asset} not found in current market data.")
-                # get nearest price
-                asset_df = self.market_data[
-                    (self.market_data['tickersymbol'] == asset)
-                    & (self.market_data['datetime'] <= self.current_date)] \
-                    .sort_values('datetime', ascending=False)
-                if asset_df.empty:
-                    logger.error(
-                        f"Asset {asset} not found in market data before {self.current_date}.")
-                    continue
-                # get the last price before current date
-                price = asset_df.iloc[0]['price']
-                logger.warning(
-                    f"Using last available price for {asset} at {asset_df.iloc[0]['datetime']}: {price}")
 
             # Calculate the current value of the asset
             current_value = price * quantity
@@ -156,37 +149,8 @@ class MarketSimulation:
             unrealized_profit_loss += (effective_price -
                                        average_price) * quantity
 
-        # Add the portfolio's cash balance to the total value
-        total_value += portfolio.balance
-
         return {
             'total_value': total_value,
             'unrealized_profit_loss': unrealized_profit_loss,
             'realized_profit_loss': portfolio.realized_profit_loss
         }
-
-    def get_last_day_stock_price(self, symbol: str) -> float:
-        """
-        Get the last stock price for a given symbol before the current date.
-        """
-        if self.current_data.empty:
-            logger.debug("No market data available for the current date.")
-            return 0.0
-        if symbol not in self.current_data['tickersymbol'].values:
-            logger.debug(f"Stock {symbol} not found in current market data.")
-            return 0.0
-        last_date = self.current_date - pd.Timedelta(days=1)
-        # Filter the market data for the symbol and the last date
-        last_price_data = self.market_data[
-            (self.market_data['tickersymbol'] == symbol) &
-            (self.market_data['datetime'] <= last_date)
-        ].sort_values(by='datetime', ascending=False)
-        if last_price_data.empty:
-            logger.debug(
-                f"No price data available for {symbol} before {last_date}.")
-            return 0.0
-        # Get the last price before the current date
-        last_price = last_price_data.iloc[0]['price']
-        # logger.debug(
-        #     f"Last price for {symbol} before {last_date}: {last_price}")
-        return last_price

@@ -53,8 +53,8 @@ class StocksRanking:
 
         # Calculate institutional score
         df["inst_score"] = (
-            0.45 * df["fund_net_buying"]
-            + 0.35 * df["number_fund_holdings"]
+            0.35 * df["fund_net_buying"]
+            + 0.45 * df["number_fund_holdings"]
             + 0.2 * df["net_fund_change"]
         ).fillna(0).clip(lower=0)
 
