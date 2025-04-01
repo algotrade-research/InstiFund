@@ -8,14 +8,15 @@ from src.settings import logger, DATA_PATH, vnstock
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from typing import List, Dict
 
 
 class Backtesting:
     RELEASE_DAY = 20  # Day of the month that new data is released
     MAX_VOLUME = 20000  # Maximum volume of stocks to buy/sell in one transaction
     NUMBER_OF_STOCKS = 3  # Number of stocks to keep in the portfolio
-    TRAILING_STOP_LOSS = 0.30  # 10% loss threshold to trigger a sell
-    TAKE_PROFIT = 0.28  # 20% profit threshold to trigger a sell
+    TRAILING_STOP_LOSS = 0.5  # 10% loss threshold to trigger a sell
+    TAKE_PROFIT = 0.30  # 20% profit threshold to trigger a sell
 
     def __init__(self, start_date: datetime, end_date: datetime, initial_balance: float):
         self.start_date = start_date
@@ -109,6 +110,27 @@ class Backtesting:
         current_assets = list(self.portfolio.assets.keys())
         return sorted(current_assets) == sorted(self.top_stocks)
 
+    def get_weights(self, ranked_stocks: List, option: str) -> Dict[str, float]:
+        """
+        Get the weights for the top stocks based on their scores.
+        :param option: 'softmax', 'equal', or 'linear'.
+        :return: Dictionary of stock symbols and their corresponding weights.
+        """
+        scores = [score for _, score in ranked_stocks[:self.NUMBER_OF_STOCKS]]
+        if option == 'softmax':
+            exp_scores = np.exp(scores)
+            weights = exp_scores / np.sum(exp_scores)
+        elif option == 'equal':
+            weights = np.ones(len(scores)) / len(scores)
+        elif option == 'linear':
+            weights = np.array(scores) / np.sum(scores)
+        else:
+            raise ValueError(
+                "Invalid option. Choose 'softmax', 'equal', or 'linear'.")
+
+        return {symbol: weight for (symbol, _), weight in zip(
+            ranked_stocks[:self.NUMBER_OF_STOCKS], weights)}
+
     def rebalance_portfolio(self):
         logger.info(
             f"Date: {self.simulation.current_date.strftime('%Y-%m-%d')} - Rebalancing portfolio.")
@@ -134,12 +156,8 @@ class Backtesting:
         # Calculate 90% of the portfolio balance for buying stocks
         available_balance = self.portfolio.balance * 0.9
 
-        # Get scores for the top stocks and apply softmax to calculate weights
-        scores = np.array(
-            [score for _, score in ranked_stocks[:self.NUMBER_OF_STOCKS]])
-        softmax_weights = np.exp(scores) / np.sum(np.exp(scores))
-        weights = {symbol: weight for (symbol, _), weight in zip(
-            ranked_stocks[:self.NUMBER_OF_STOCKS], softmax_weights)}
+        # Calculate weights for the top stocks
+        weights = self.get_weights(ranked_stocks, 'linear')
 
         # Buy or adjust holdings for the top stocks
         for symbol in self.top_stocks:

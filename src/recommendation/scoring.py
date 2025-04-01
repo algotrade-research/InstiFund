@@ -64,17 +64,23 @@ class StocksRanking:
         Calculate the financial score (fin_score) based on ROE, PE, revenue growth, and cash ratio.
         If any financial score component is NaN, set the fin_score to 0.
         """
-        # Normalize ROE and revenue growth (larger is better)
+        # Clip debt_to_equity for normalization
         df["debt_to_equity"] = df["debt_to_equity"].clip(
             lower=0.0, upper=2.0)  # Cap at 2.0 for normalization
-        # normalize cash ratio, less deviate from the mean, the better
+
+        # Normalize cash ratio: less deviation from the mean is better
         df["cash_ratio_normalized"] = df["cash_ratio"].apply(
-            lambda x: 1 - abs(x - df["cash_ratio"].mean()) / df["cash_ratio"].std())
+            lambda x: 1 - abs(x - df["cash_ratio"].mean()
+                              ) / df["cash_ratio"].std()
+        )
         df["cash_ratio_normalized"] = df["cash_ratio_normalized"].clip(
             lower=0.0, upper=1.0)
-
-        # normalize, the larger the better
-        for column in ["roe", "revenue_growth", "debt_to_equity"]:
+        # P/E ratio score: (revenue_growth - pe) / revenue_growth
+        df["pe_score"] = (df["revenue_growth"] - df["pe"]) / \
+            df["revenue_growth"]
+        df["pe_score"] = df["pe_score"].clip(lower=0.0)
+        # Normalize ROE, revenue growth, and debt_to_equity (larger is better)
+        for column in ["roe", "revenue_growth", "debt_to_equity", "pe_score"]:
             if df[column].max() != df[column].min():  # Avoid division by zero
                 df[f"{column}_normalized"] = (
                     df[column] - df[column].min()) / (df[column].max() - df[column].min())
@@ -88,18 +94,20 @@ class StocksRanking:
             "revenue_growth_normalized",
             "debt_to_equity_normalized",
             "cash_ratio_normalized",
+            "pe_score_normalized",
         ]
         df["fin_score"] = (
-            0.3 * df["roe_normalized"] +
-            0.3 * df["revenue_growth_normalized"] +
-            0.2 * df["debt_to_equity_normalized"] +
-            0.2 * df["cash_ratio_normalized"]
+            0.30 * df["roe_normalized"] +
+            0.15 * df["revenue_growth_normalized"] +
+            0.10 * df["debt_to_equity_normalized"] +
+            0.10 * df["cash_ratio_normalized"] +
+            0.35 * df["pe_score_normalized"]
         )
 
         # If any financial component is NaN, set fin_score to 0
         df.loc[df[financial_columns].isnull().any(axis=1), "fin_score"] = 0
 
-        # if fin_score is NaN, set it to 0
+        # If fin_score is NaN, set it to 0
         df["fin_score"] = df["fin_score"].fillna(0)
         df["fin_score"] = df["fin_score"].clip(lower=0)
 
