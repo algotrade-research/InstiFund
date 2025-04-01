@@ -4,17 +4,16 @@ from src.market.simulation import MarketSimulation
 from src.market.portfolio import Portfolio
 from datetime import datetime
 from src.utitlies import get_last_month
-from src.settings import logger, DATA_PATH
+from src.settings import logger, DATA_PATH, vnstock
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from vnstock import Vnstock
 
 
 class Backtesting:
     RELEASE_DAY = 20  # Day of the month that new data is released
     MAX_VOLUME = 20000  # Maximum volume of stocks to buy/sell in one transaction
-    NUMBER_OF_STOCKS = 5  # Number of stocks to keep in the portfolio
+    NUMBER_OF_STOCKS = 3  # Number of stocks to keep in the portfolio
     TRAILING_STOP_LOSS = 0.30  # 10% loss threshold to trigger a sell
     TAKE_PROFIT = 0.28  # 20% profit threshold to trigger a sell
 
@@ -297,8 +296,7 @@ class Backtesting:
         df['Cumulative Return'] = (1 + df['Daily Return']).cumprod() - 1
 
         # Add VNINDEX data
-        vnindex = Vnstock().stock(symbol="ACB", source="VCI")
-        vnindex_hist = vnindex.quote.history(symbol="VNINDEX",
+        vnindex_hist = vnstock.quote.history(symbol="VNINDEX",
                                              start=self.start_date.strftime(
                                                  "%Y-%m-%d"),
                                              end=self.end_date.strftime(
@@ -357,7 +355,7 @@ class Backtesting:
 if __name__ == '__main__':
     start_date = datetime(2023, 2, 1)
     end_date = datetime(2024, 1, 31)  # the day must be >= 20
-    initial_balance = 5000000
+    initial_balance = 1000000
 
     backtesting = Backtesting(start_date, end_date, initial_balance)
     backtesting.run()

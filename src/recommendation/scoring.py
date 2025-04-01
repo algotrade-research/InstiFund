@@ -15,8 +15,8 @@ class StocksRanking:
         # get the last month and year, and last quarter
         self.month = month - 1 if month > 1 else 12
         self.year = year - 1 if month == 1 else year
-        self.quarter = month // 3 - 1 if month // 3 > 0 else 3
-        self.quarter_year = year - 1 if self.quarter == 3 else year
+        self.quarter = (month - 1) // 3 if month > 3 else 4
+        self.quarter_year = year - 1 if self.quarter == 4 else year
         self.symbols = symbols
 
     def get_all_scores(self) -> pd.DataFrame:
@@ -61,12 +61,19 @@ class StocksRanking:
 
     def calculate_fin_score(self, df: pd.DataFrame) -> None:
         """
-        Calculate the financial score (fin_score) based on ROE, PE, revenue growth, and current ratio.
+        Calculate the financial score (fin_score) based on ROE, PE, revenue growth, and cash ratio.
         If any financial score component is NaN, set the fin_score to 0.
         """
         # Normalize ROE and revenue growth (larger is better)
         df["debt_to_equity"] = df["debt_to_equity"].clip(
             lower=0.0, upper=2.0)  # Cap at 2.0 for normalization
+        # normalize cash ratio, less deviate from the mean, the better
+        df["cash_ratio_normalized"] = df["cash_ratio"].apply(
+            lambda x: 1 - abs(x - df["cash_ratio"].mean()) / df["cash_ratio"].std())
+        df["cash_ratio_normalized"] = df["cash_ratio_normalized"].clip(
+            lower=0.0, upper=1.0)
+
+        # normalize, the larger the better
         for column in ["roe", "revenue_growth", "debt_to_equity"]:
             if df[column].max() != df[column].min():  # Avoid division by zero
                 df[f"{column}_normalized"] = (
@@ -75,30 +82,18 @@ class StocksRanking:
                 # If all values are the same, set normalized value to 0
                 df[f"{column}_normalized"] = 0
 
-        # Calculate current ratio weight
-        def current_ratio_weight(cr):
-            if cr >= 3:
-                return 0.5
-            elif cr >= 1.5:
-                return 1.0
-            else:
-                return 0.0
-
-        df["current_ratio_weight"] = df["current_ratio"].apply(
-            current_ratio_weight)
-
         # Check for NaN values in financial score components
         financial_columns = [
             "roe_normalized",
             "revenue_growth_normalized",
             "debt_to_equity_normalized",
-            "current_ratio_weight",
+            "cash_ratio_normalized",
         ]
         df["fin_score"] = (
             0.3 * df["roe_normalized"] +
             0.3 * df["revenue_growth_normalized"] +
             0.2 * df["debt_to_equity_normalized"] +
-            0.2 * df["current_ratio_weight"]
+            0.2 * df["cash_ratio_normalized"]
         )
 
         # If any financial component is NaN, set fin_score to 0
