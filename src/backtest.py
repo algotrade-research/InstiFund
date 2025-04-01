@@ -33,7 +33,6 @@ class Backtesting:
         self.end_date = end_date
         self.portfolio = Portfolio("Test Portfolio", initial_balance)
         self.simulation = MarketSimulation(start_date, end_date)
-        self.trading_days = []  # Track trading days
         self.stocks = get_stocks_list()  # List of available stocks
         self.top_stocks = []  # Top stocks for rebalancing
         self.need_rebalance = True  # Flag to indicate if rebalancing is needed
@@ -56,9 +55,11 @@ class Backtesting:
         realized_pl = sell_info['total_revenue'] - \
             self.portfolio.paid_value(asset, quantity)
         self.portfolio.remove_asset(
-            asset, quantity, sell_info['total_revenue'], sell_info['price'], sell_info['date'])
+            asset, quantity, sell_info['total_revenue'], sell_info['price'], sell_info['date']
+        )
         logger.debug(
-            f"Sold {quantity} shares of {asset} at {sell_info['price']} each. Realized P/L: {realized_pl:.2f}")
+            f"Sold {quantity} shares of {asset} at {sell_info['price']} each. Realized P/L: {realized_pl:.2f}"
+        )
         return True
 
     def buy(self, symbol: str, quantity: int) -> bool:
@@ -75,7 +76,8 @@ class Backtesting:
             return False
 
         self.portfolio.add_asset(
-            symbol, quantity, buy_info['total_cost'], buy_info['price'], buy_info['date'])
+            symbol, quantity, buy_info['total_cost'], buy_info['price'], buy_info['date']
+        )
         logger.debug(
             f"Bought {quantity} shares of {symbol} at {buy_info['price']} each.")
         return True
@@ -164,40 +166,35 @@ class Backtesting:
             self.peak_prices[asset] = max(
                 self.peak_prices[asset], current_price)
 
-    def check_sell_conditions(self, asset):
+    def check_sell_conditions(self, asset: str, current_price: float) -> bool:
         """
         Check if the asset should be sold based on trailing stop loss or take profit conditions.
+
+        :param asset: Stock symbol to check.
+        :param current_price: Current price of the asset.
+        :return: True if the asset should be sold, False otherwise.
         """
         asset_data = self.portfolio.assets.get(asset, {})
         if not asset_data:
             return False
 
         purchase_price = asset_data['average_price']
-        current_price = self.simulation.get_last_available_price(asset)
-
-        if current_price is None or current_price <= 0:
-            logger.warning(
-                f"Failed to get current price for {asset}. Skipping sell condition check.")
-            return False
 
         # Update the peak price for the asset
-        self.update_peak_price(asset, current_price)
-
-        # Calculate percentage change from purchase price
-        price_change = (current_price - purchase_price) / purchase_price
+        self.peak_prices[asset] = max(self.peak_prices.get(
+            asset, current_price), current_price)
 
         # Check take profit condition
-        if price_change >= self.TAKE_PROFIT:
+        if (current_price - purchase_price) / purchase_price >= self.TAKE_PROFIT:
             logger.debug(
-                f"Take profit triggered for {asset}. Current price: {current_price}, Purchase price: {purchase_price}")
+                f"Take profit triggered for {asset}. Current price: {current_price}")
             return True
 
         # Check trailing stop loss condition
-        peak_price = self.peak_prices.get(asset, current_price)
+        peak_price = self.peak_prices[asset]
         if (current_price - peak_price) / peak_price <= -self.TRAILING_STOP_LOSS:
             logger.debug(
-                f"Trailing stop loss triggered for {asset}. Current price: {current_price}, Peak price: {peak_price}")
-            # self.need_rebalance = True
+                f"Trailing stop loss triggered for {asset}. Current price: {current_price}")
             return True
 
         return False
@@ -214,48 +211,48 @@ class Backtesting:
         last_month = self.simulation.current_date.month
 
         while self.simulation.step():
-            if self.simulation.current_date.month != last_month:
-                last_month = self.simulation.current_date.month
+            current_date = self.simulation.current_date
+            if current_date.month != last_month:
+                last_month = current_date.month
                 self.need_rebalance = True
 
-            # Calculate daily return
-            portfolio_statistics = self.simulation.get_portfolio_statistics(
+            # End simulation if it's the last month
+            if (current_date.month == self.end_date.month and
+                current_date.year == self.end_date.year and
+                    current_date.day >= self.RELEASE_DAY):
+                for asset, asset_data in list(self.portfolio.assets.items()):
+                    self.sell(asset, asset_data['quantity'])
+            elif current_date.day >= self.RELEASE_DAY and self.need_rebalance:
+                # Rebalance portfolio
+                self.rebalance_portfolio()
+
+            # # Retrieve daily statistics from the portfolio
+            daily_stats = self.portfolio.get_daily_statistics(
+                current_date)
+            portfolio_stats = self.simulation.get_portfolio_statistics(
                 self.portfolio)
-            current_total_value = portfolio_statistics['total_value']
+
+            # # Append daily statistics to portfolio_statistics
             self.portfolio_statistics.append({
-                "datetime": self.simulation.current_date,
-                "total_assets": current_total_value,
+                "datetime": current_date,
+                "total_assets": portfolio_stats['total_value'],
                 "cash": self.portfolio.balance,
-                "number_of_trades": len(self.portfolio.transactions),
-                "number_of_winners": sum(1 for t in self.portfolio.transactions if t['action'] == 'sell' and t['realized_pl'] > 0),
-                "sum_of_winners": sum(t['realized_pl'] for t in self.portfolio.transactions if t['action'] == 'sell' and t['realized_pl'] > 0),
-                "sum_of_losers": sum(t['realized_pl'] for t in self.portfolio.transactions if t['action'] == 'sell' and t['realized_pl'] < 0),
+                "number_of_trades": daily_stats['number_of_trades'],
+                "number_of_winners": daily_stats['number_of_winners'],
+                "sum_of_winners": daily_stats['sum_of_winners'],
+                "sum_of_losers": daily_stats['sum_of_losers'],
             })
 
-            self.trading_days.append(
-                self.simulation.current_date.strftime("%Y-%m-%d"))
-
             # Check sell conditions for each asset
-            for asset in list(self.portfolio.assets.keys()):
-                if self.check_sell_conditions(asset):
-                    self.sell(asset, self.portfolio.assets[asset]['quantity'])
-
-            # End simulation if it's the last month
-            if (self.simulation.current_date.month == self.end_date.month and
-                self.simulation.current_date.year == self.end_date.year and
-                    self.simulation.current_date.day >= self.RELEASE_DAY):
-                for asset in list(self.portfolio.assets.keys()):
-                    self.sell(asset, self.portfolio.assets[asset]['quantity'])
-                break
-
-            # Rebalance portfolio
-            if self.simulation.current_date.day >= self.RELEASE_DAY and self.need_rebalance:
-                self.rebalance_portfolio()
+            items = list(self.portfolio.assets.items())
+            for asset, asset_data in items:
+                current_price = self.simulation.get_last_available_price(asset)
+                if current_price > 0 and self.check_sell_conditions(asset, current_price):
+                    self.sell(asset, asset_data['quantity'])
 
         logger.disabled = config.get("disable_logging", False)
         runtime = time.time() - start_time
-        logger.info(
-            f"Backtesting completed in {runtime:.2f} seconds.")
+        logger.info(f"Backtesting completed in {runtime:.2f} seconds.")
 
     def evaluate(self, result_dir: str):
         """
@@ -276,3 +273,7 @@ if __name__ == '__main__':
     backtesting = Backtesting(start_date, end_date, initial_balance)
     backtesting.run()
     backtesting.evaluate(result_dir=DATA_PATH)
+
+    # save portfolio statistics to csv
+    portfolio_df = pd.DataFrame(backtesting.portfolio_statistics)
+    portfolio_df.to_csv(f"{DATA_PATH}/portfolio_statistics.csv", index=False)

@@ -22,19 +22,30 @@ class MarketSimulation:
         self.trading_days = self._get_trading_days()
         if not self.trading_days:
             raise ValueError(
-                "No trading days available in the specified date range.")
+                "No trading days available in the specified date range."
+            )
+
+        # Cache market data by date for faster access
+        self.market_data_by_date = {
+            date: group for date, group in self.market_data.groupby("datetime")
+        }
+
+        # Cache for the latest price of each stock
+        self.latest_price_cache = {}
 
         logger.debug(f"Trading days: {self.trading_days}")
         self.current_trading_day_index = 0
         self.current_date = self.trading_days[self.current_trading_day_index]
-        self.current_data = self.get_current_stock_data()
+        self.current_data = self.market_data_by_date.get(
+            self.current_date, pd.DataFrame()
+        )
 
     def _get_trading_days(self) -> List[datetime]:
         """Retrieve and sort trading days within the specified date range."""
         trading_days = self.market_data[
-            (self.market_data['datetime'] >= self.start_date) &
-            (self.market_data['datetime'] <= self.end_date)
-        ]['datetime'].drop_duplicates().sort_values()
+            (self.market_data["datetime"] >= self.start_date)
+            & (self.market_data["datetime"] <= self.end_date)
+        ]["datetime"].drop_duplicates().sort_values()
         return trading_days.tolist()
 
     def load_market_data(self) -> pd.DataFrame:
@@ -50,19 +61,32 @@ class MarketSimulation:
             raise
 
     def step(self) -> bool:
-        """Advance the simulation to the next trading day and update current data."""
+        """
+        Advance the simulation to the next trading day and update current data.
+        """
         if self.current_trading_day_index + 1 < len(self.trading_days):
             self.current_trading_day_index += 1
             self.current_date = self.trading_days[self.current_trading_day_index]
-            self.current_data = self.get_current_stock_data()
+            self.current_data = self.market_data_by_date.get(
+                self.current_date, pd.DataFrame()
+            )
+            # update latest price cache
+            for symbol in self.current_data['tickersymbol'].unique():
+                self.latest_price_cache[symbol] = self.current_data[
+                    self.current_data['tickersymbol']
+                    == symbol]['price'].values[0]
+            # logger.debug(f"Advanced to next trading day: {self.current_date}")
             return True
         else:
             logger.info("Simulation has reached the end date.")
             return False
 
     def get_current_stock_data(self) -> pd.DataFrame:
-        """Get the market data for the current date."""
-        return self.market_data[self.market_data['datetime'] == self.current_date]
+        """
+        Get the market data for the current date.
+        This method now simply returns the cached `current_data`.
+        """
+        return self.current_data
 
     def buy_stock(self, symbol: str, quantity: int) -> Dict[str, Any]:
         """Simulate buying a stock."""
@@ -107,6 +131,11 @@ class MarketSimulation:
         """
         Get the last available price for a given asset before the current date.
         """
+        # Check if the price is already cached
+        if asset in self.latest_price_cache:
+            return self.latest_price_cache[asset]
+
+        # Retrieve the last available price from the market data
         asset_data = self.market_data[
             (self.market_data['tickersymbol'] == asset) &
             (self.market_data['datetime'] <= self.current_date)
@@ -114,10 +143,14 @@ class MarketSimulation:
 
         if asset_data.empty:
             logger.error(
-                f"Asset {asset} not found in market data before {self.current_date}.")
+                f"Asset {asset} not found in market data before {self.current_date}."
+            )
+            self.latest_price_cache[asset] = 0.0  # Cache the result as 0.0
             return 0.0
 
-        return asset_data.iloc[0]['price']
+        last_price = asset_data.iloc[0]['price']
+        self.latest_price_cache[asset] = last_price  # Cache the result
+        return last_price
 
     def get_portfolio_statistics(self, portfolio: Portfolio) -> Dict[str, Any]:
         """

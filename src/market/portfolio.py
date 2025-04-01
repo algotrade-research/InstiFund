@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import datetime
 import pandas as pd
 
@@ -13,11 +14,17 @@ class Portfolio:
         self.balance = initial_balance
         self.initial_balance = initial_balance
         self.realized_profit_loss = 0.0
-        # Format: {asset_name: {'quantity': float, 'average_price': float}},
-        # average price is average amount of money spent to buy the asset
-        # (included transaction fee)
+        # Format: {asset_name: {'quantity': float, 'average_price': float}}
         self.assets = {}
         self.transactions = []
+        # Cache daily statistics: {'sum_of_winners': float, 'sum_of_losers': float, 'number_of_trades': int, 'number_of_winners': int, 'date': datetime}
+        self.daily_statistics = {
+            'sum_of_winners': 0.0,
+            'sum_of_losers': 0.0,
+            'number_of_trades': 0,
+            'number_of_winners': 0,
+            'date': None,
+        }
 
     def add_asset(self, asset_name: str, quantity: float, total_cost: float, price: float, transaction_date: datetime):
         """
@@ -44,6 +51,22 @@ class Portfolio:
             'total_cost': total_cost,
             'datetime': transaction_date
         })
+
+    def get_daily_statistics(self, date: datetime) -> dict:
+        """
+        Get daily statistics for the portfolio.
+        :param date: The date for which to get the statistics.
+        :return: A dictionary containing daily statistics.
+        """
+        if self.daily_statistics['date'] != date.date():
+            return {
+                'sum_of_winners': 0.0,
+                'sum_of_losers': 0.0,
+                'number_of_trades': 0,
+                'number_of_winners': 0,
+                'date': date.date(),
+            }
+        return self.daily_statistics
 
     def remove_asset(self, asset_name: str, quantity: float, total_revenue: float, price: float, transaction_date: datetime):
         """
@@ -78,6 +101,23 @@ class Portfolio:
                 'realized_pl': realized_pl,
                 'datetime': transaction_date
             })
+
+            # Update daily statistics
+            date_key = transaction_date.date()
+            if self.daily_statistics['date'] != date_key:
+                self.daily_statistics = {
+                    'sum_of_winners': 0.0,
+                    'sum_of_losers': 0.0,
+                    'number_of_trades': 0,
+                    'number_of_winners': 0,
+                    'date': date_key,
+                }
+            self.daily_statistics['number_of_trades'] += 1
+            if realized_pl > 0:
+                self.daily_statistics['sum_of_winners'] += realized_pl
+                self.daily_statistics['number_of_winners'] += 1
+            else:
+                self.daily_statistics['sum_of_losers'] += abs(realized_pl)
         else:
             raise ValueError(f"Asset {asset_name} not found in portfolio.")
 
