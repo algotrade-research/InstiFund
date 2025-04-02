@@ -216,13 +216,10 @@ class Backtesting:
 
         return False
 
-    def run(self, disable_logging: bool = True):
+    def run(self):
         """
         Run the backtesting simulation.
-
-        :param disable_logging: Disable logging for performance.
         """
-        logger.disabled = disable_logging
         logger.info("Starting backtesting process.")
         start_time = time.time()
         last_month = self.simulation.current_date.month
@@ -273,7 +270,6 @@ class Backtesting:
                 "sum_of_losers": daily_stats['sum_of_losers'],
             })
 
-        logger.disabled = config.get("disable_logging", False)
         runtime = time.time() - start_time
         logger.debug(f"Backtesting completed in {runtime:.2f} seconds.")
 
@@ -336,7 +332,7 @@ if __name__ == '__main__':
     assert end_date.day >= 20, "End date must be after the 20th of the month."
 
     backtesting = Backtesting(start_date, end_date)
-    backtesting.run(disable_logging=False)
+    backtesting.run()
     result_dir = f"{DATA_PATH}/backtest/{args.name}"
     os.makedirs(result_dir, exist_ok=True)
     backtesting.evaluate(result_dir=result_dir)
