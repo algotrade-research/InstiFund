@@ -254,13 +254,13 @@ class Backtesting:
                         and self.check_sell_conditions(asset, current_price))):
                     self.sell(asset, asset_data['quantity'])
 
-            # Retrieve daily statistics from the portfolio
+            # # Retrieve daily statistics from the portfolio
             daily_stats = self.portfolio.get_daily_statistics(
                 current_date)
             portfolio_stats = self.simulation.get_portfolio_statistics(
                 self.portfolio)
 
-            # # Append daily statistics to portfolio_statistics
+            # Append daily statistics to portfolio_statistics
             self.portfolio_statistics.append({
                 "datetime": current_date,
                 "total_assets": portfolio_stats['total_value'],

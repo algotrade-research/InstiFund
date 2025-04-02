@@ -154,39 +154,75 @@ class MarketSimulation:
 
     def get_portfolio_statistics(self, portfolio: Portfolio) -> Dict[str, Any]:
         """
-        Get the current total value, unrealized profit/loss, and realized profit/loss of the portfolio.
+        Optimized function to get portfolio value, unrealized P/L, and realized P/L
+        using the latest_price_cache directly for maximum performance.
         """
-        total_value = portfolio.balance  # Start with the portfolio's cash balance
+        total_value = portfolio.balance  # Start with cash balance
         unrealized_profit_loss = 0.0
 
-        # Precompute a price lookup dictionary for current data
-        price_lookup = self.current_data.set_index('tickersymbol')[
-            'price'].to_dict()
+        # Extract portfolio assets, quantities, and avg prices
+        assets = list(portfolio.assets.keys())
+        quantities = np.array(
+            [portfolio.assets[asset]['quantity'] for asset in assets])
+        avg_prices = np.array(
+            [portfolio.assets[asset]['average_price'] for asset in assets])
 
-        for asset, asset_data in portfolio.assets.items():
-            quantity = asset_data['quantity']
-            average_price = asset_data['average_price']
+        # Retrieve current prices directly from latest_price_cache
+        try:
+            current_prices = np.array(
+                [self.latest_price_cache[asset] for asset in assets])
+        except KeyError as e:
+            raise ValueError(f"Missing price data for asset: {e.args[0]}")
 
-            # Get the current price or fallback to the last available price
-            price = price_lookup.get(
-                asset, self.get_last_available_price(asset))
-            if price == 0.0:
-                continue
+        # Compute total portfolio value
+        total_value += np.sum(current_prices * quantities)
 
-            # Calculate the current value of the asset
-            current_value = price * quantity
-            total_value += current_value
-
-            # Calculate unrealized profit/loss considering the trading fee
-            effective_price = price * (1 - self.TRADING_FEE)
-            unrealized_profit_loss += (effective_price -
-                                       average_price) * quantity
+        # Compute unrealized profit/loss
+        effective_prices = current_prices * (1 - self.TRADING_FEE)
+        unrealized_profit_loss = np.sum(
+            (effective_prices - avg_prices) * quantities)
 
         return {
             'total_value': total_value,
             'unrealized_profit_loss': unrealized_profit_loss,
             'realized_profit_loss': portfolio.realized_profit_loss
         }
+
+    # def get_portfolio_statistics(self, portfolio: Portfolio) -> Dict[str, Any]:
+    #     """
+    #     Get the current total value, unrealized profit/loss, and realized profit/loss of the portfolio.
+    #     """
+    #     total_value = portfolio.balance  # Start with the portfolio's cash balance
+    #     unrealized_profit_loss = 0.0
+
+    #     # Precompute a price lookup dictionary for current data
+    #     price_lookup = self.current_data.set_index('tickersymbol')[
+    #         'price'].to_dict()
+
+    #     for asset, asset_data in portfolio.assets.items():
+    #         quantity = asset_data['quantity']
+    #         average_price = asset_data['average_price']
+
+    #         # Get the current price or fallback to the last available price
+    #         price = price_lookup.get(
+    #             asset, self.get_last_available_price(asset))
+    #         if price == 0.0:
+    #             continue
+
+    #         # Calculate the current value of the asset
+    #         current_value = price * quantity
+    #         total_value += current_value
+
+    #         # Calculate unrealized profit/loss considering the trading fee
+    #         effective_price = price * (1 - self.TRADING_FEE)
+    #         unrealized_profit_loss += (effective_price -
+    #                                    average_price) * quantity
+
+    #     return {
+    #         'total_value': total_value,
+    #         'unrealized_profit_loss': unrealized_profit_loss,
+    #         'realized_profit_loss': portfolio.realized_profit_loss
+    #     }
 
     def is_last_trading_day(self) -> bool:
         """
