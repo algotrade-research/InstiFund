@@ -1,4 +1,5 @@
 import optuna.visualization.matplotlib as optuna_matplotlib
+from optuna.study import MaxTrialsCallback
 import os
 import matplotlib.pyplot as plt
 import optuna
@@ -12,10 +13,29 @@ import argparse
 
 
 class Optimizer:
-    def __init__(self, start_date: datetime, end_date: datetime):
+    def __init__(self, start_date: datetime, end_date: datetime,
+                 result_dir: str) -> None:
         self.start_date = start_date
         self.end_date = end_date
         self.study = None  # Store the study object for reuse
+
+        # Set the random seed for reproducibility
+        random_seed = config.get("random_seed", 42)
+        sampler = optuna.samplers.TPESampler(seed=random_seed)
+        # Create the study object
+        storage_path = f"sqlite:///{
+            os.path.join(result_dir, config['optuna']['storage_name'])}.db"
+        os.makedirs(result_dir, exist_ok=True)
+        logger.info(
+            f"Creating Optuna study with storage path: {storage_path}"
+        )
+        self.study = optuna.create_study(
+            study_name=config["optuna"]["study_name"],
+            storage=storage_path,
+            sampler=sampler,
+            load_if_exists=True,
+            direction="maximize",
+        )
 
     def objective_function(self, trial: optuna.Trial) -> float:
         """
@@ -74,16 +94,10 @@ class Optimizer:
         :param n_trials: Number of trials to run.
         """
         logger.info("Starting optimization with Optuna...")
-
-        # Set the random seed for reproducibility
-        random_seed = config.get("random_seed", 42)
-        sampler = optuna.samplers.TPESampler(seed=random_seed)
-
-        # Create the study with the sampler
         logger.disabled = True
-        self.study = optuna.create_study(direction="maximize", sampler=sampler)
         self.study.optimize(self.objective_function,
-                            n_trials=n_trials, show_progress_bar=True)
+                            n_trials=n_trials,
+                            show_progress_bar=True)
         logger.disabled = config.get("disable_logging", False)
 
         logger.info(
@@ -134,15 +148,21 @@ if __name__ == "__main__":
         config["in_sample"]["start_date"], "%Y-%m-%d")
     end_date = datetime.strptime(config["in_sample"]["end_date"], "%Y-%m-%d")
 
-    # Initialize the optimizer
-    optimizer = Optimizer(start_date=start_date, end_date=end_date)
-
-    # Run the optimization
-    optimizer.optimize(n_trials=args.n_trials)
-
     # Define the output directory
     output_dir = os.path.join(DATA_PATH, "optimization")
     os.makedirs(output_dir, exist_ok=True)
+
+    # Initialize the optimizer
+    optimizer = Optimizer(start_date=start_date,
+                          end_date=end_date,
+                          result_dir=output_dir)
+
+    # Run the optimization
+    remaining_trials = args.n_trials - len(optimizer.study.trials)
+    logger.info(
+        f"Remaining trials to run: {remaining_trials} out of "
+        f"{args.n_trials} total trials.")
+    optimizer.optimize(n_trials=remaining_trials)
 
     # Save trials data and plots
     optimizer.save_trials_data(output_dir)
