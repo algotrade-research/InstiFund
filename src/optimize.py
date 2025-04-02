@@ -60,11 +60,12 @@ class Optimizer:
         results = Evaluate(data,
                            name=f"backtest_trial_{trial.number}"
                            ).quick_evaluate()
-        mdd_score = (1.0 if results["mdd"] >= -0.15
-                     else 1 - ((-0.15) - results["mdd"])/((-0.15) - (-1.0)))
-        sharpe_score = (1.0 if results["sharpe"] >= 3.0
-                        else results["sharpe"]/3.0)
-        target = 0.6 * sharpe_score + 0.4 * mdd_score
+        mdd_score = (1.0 if results["mdd"] >= -0.10
+                     else 0.0 if results["mdd"] <= -0.20
+                     else (0.2 + results["mdd"])/0.1)
+        sharpe_score = (1.0 if results["sharpe"] >= 2.0
+                        else results["sharpe"]/2.0)
+        target = 0.8 * sharpe_score + 0.2 * mdd_score
         return target
 
     def optimize(self, n_trials: int = 100) -> None:
