@@ -70,11 +70,14 @@ class MarketSimulation:
             self.current_data = MarketSimulation.MARKET_DATA_BY_DATE.get(
                 self.current_date, pd.DataFrame()
             )
-            # update latest price cache
-            for symbol in self.current_data['tickersymbol'].unique():
-                self.latest_price_cache[symbol] = self.current_data[
-                    self.current_data['tickersymbol']
-                    == symbol]['price'].values[0]
+
+            # Update the latest price cache using vectorized operations
+            if not self.current_data.empty:
+                self.latest_price_cache.update(
+                    self.current_data.set_index('tickersymbol')[
+                        'price'].to_dict()
+                )
+
             # logger.debug(f"Advanced to next trading day: {self.current_date}")
             return True
         else:
@@ -96,8 +99,7 @@ class MarketSimulation:
         if symbol not in self.current_data['tickersymbol'].values:
             logger.debug(f"Stock {symbol} not found in current market data.")
             return {}
-        price = self.current_data[self.current_data['tickersymbol']
-                                  == symbol]['price'].values[0]
+        price = self.latest_price_cache.get(symbol, 0.0)
         total_cost = price * quantity * (1 + self.TRADING_FEE)
         return {
             'symbol': symbol,
@@ -115,8 +117,7 @@ class MarketSimulation:
         if symbol not in self.current_data['tickersymbol'].values:
             logger.debug(f"Stock {symbol} not found in current market data.")
             return {}
-        price = self.current_data[self.current_data['tickersymbol']
-                                  == symbol]['price'].values[0]
+        price = self.latest_price_cache.get(symbol, 0.0)
         total_revenue = price * quantity * (1 - self.TRADING_FEE)
         # logger.debug(f"Selling {quantity} shares of {symbol} at {price} each.")
         return {
