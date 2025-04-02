@@ -66,12 +66,10 @@ class InstitutionalScoring:
                 symbol) if symbol in last_grouped.groups else pd.DataFrame()
 
             if current_data.empty or last_data.empty:
-                scores.append({
-                    "symbol": symbol,
-                    "fund_net_buying": 0.0,
-                    "number_fund_holdings": 0,
-                    "net_fund_change": 0
-                })
+                logger.debug(
+                    f"No data found for {symbol} ({self.month}/{self.year})"
+                    f" or {last_month}/{last_year}. Skipping."
+                )
                 continue
 
             try:

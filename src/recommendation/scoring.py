@@ -1,8 +1,19 @@
 from src.recommendation.funds import InstitutionalScoring
 from src.recommendation.stocks import FinancialScoring
-from src.settings import logger
+from src.settings import logger, DATA_PATH
 from typing import List, Tuple
 import pandas as pd
+import os
+
+
+try:
+    MONTHLY_SCORES_DF = pd.read_csv(
+        os.path.join(DATA_PATH, "monthly_scores.csv"))
+    logger.info(
+        f"Monthly scores data loaded successfully with {len(MONTHLY_SCORES_DF)} rows."
+    )
+except Exception as e:
+    logger.error(f"Failed to load monthly scores data: {e}")
 
 
 class StocksRanking:
@@ -12,10 +23,8 @@ class StocksRanking:
 
     def __init__(self, month: int, year: int, symbols: List[str]):
         # Calculate the last month, year, and quarter
-        self.month = month - 1 if month > 1 else 12
-        self.year = year - 1 if month == 1 else year
-        self.quarter = (month - 1) // 3 if month > 3 else 4
-        self.quarter_year = year - 1 if self.quarter == 4 else year
+        self.month = month
+        self.year = year
         self.symbols = symbols
 
     def get_all_scores(self) -> pd.DataFrame:
@@ -23,20 +32,25 @@ class StocksRanking:
         Retrieve and merge institutional and financial scores for all symbols.
         If any scores are missing, set them to 0.
         """
-        inst_scoring = InstitutionalScoring(
-            self.month, self.year, self.symbols
-        ).get_scores()
-        fin_scoring = FinancialScoring(
-            self.quarter, self.quarter_year, self.symbols
-        ).get_scores()
+        # inst_scoring = InstitutionalScoring(
+        #     self.month, self.year, self.symbols
+        # ).get_scores()
+        # fin_scoring = FinancialScoring(
+        #     self.quarter, self.quarter_year, self.symbols
+        # ).get_scores()
 
-        # Merge on symbol with an outer join to include all symbols
-        df = pd.merge(inst_scoring, fin_scoring,
-                      on="symbol", how="outer").fillna(0)
+        # # Merge on symbol with an outer join to include all symbols
+        # df = pd.merge(inst_scoring, fin_scoring,
+        #               on="symbol", how="outer").fillna(0)
 
-        logger.debug(
-            f"Scores DataFrame after merge: \n{df.head(10).to_string(index=False)}"
-        )
+        # logger.debug(
+        #     f"Scores DataFrame after merge: \n{df.head(10).to_string(index=False)}"
+        # )
+        df = MONTHLY_SCORES_DF[
+            (MONTHLY_SCORES_DF["month"] == self.month) &
+            (MONTHLY_SCORES_DF["year"] == self.year) &
+            (MONTHLY_SCORES_DF["symbol"].isin(self.symbols))
+        ].reset_index(drop=True)
         return df
 
     def calculate_institutional_score(self, df: pd.DataFrame) -> None:
@@ -106,16 +120,9 @@ class StocksRanking:
 
         logger.debug(
             f"Institutional and financial scores:\n"
-            f"{df[['symbol', 'inst_score', 'fin_score', 'score']].head(10).to_string(index=False)}"
+            f"{df[['symbol', 'inst_score', 'fin_score', 'score']]
+               .head(10).to_string(index=False)}"
         )
 
         # Return the top-ranked symbols with their scores
         return df[["symbol", "score"]].values.tolist()
-
-    def recommend(self) -> List[str]:
-        """
-        Recommend the top 3 stocks based on their scores.
-        :return: List of top 3 stock symbols.
-        """
-        ranking = self.get_ranking()[:3]
-        return [symbol for symbol, _ in ranking]

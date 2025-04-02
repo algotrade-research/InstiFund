@@ -38,3 +38,4 @@ logger.disabled = config.get("disable_logging", False)
 
 # Init Vnstock
 vnstock = Vnstock().stock(symbol="ACB", source="VCI")
+
