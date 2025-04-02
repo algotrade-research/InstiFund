@@ -1,4 +1,4 @@
-from src.settings import config, vnstock, logger
+from src.settings import config, logger
 from matplotlib import pyplot as plt
 from datetime import datetime
 import pandas as pd
@@ -11,6 +11,7 @@ def get_vnindex_benchmark(start_date: datetime, end_date: datetime
     """
     Get VNINDEX benchmark data from vnstock API.
     """
+    from src.settings import vnstock
     logger.debug(
         f"Fetching VNINDEX benchmark data from {start_date} to {end_date}.")
     vnindex = vnstock.quote.history(symbol="VNINDEX",
@@ -374,13 +375,13 @@ class Evaluate:
         """
         Quickly evaluate the performance of the trading strategy.
         Return the evaluation results as a dictionary.
-        - Total P&L
+        - ROI
         - Sharpe Ratio
         - Maximum Drawdown
         """
         evaluation_results = {
-            "Total P&L": self.get_total_pnl(),
-            "Sharpe Ratio": self.get_sharpe_ratio(),
-            "Maximum Drawdown": self.get_max_drawdown(),
+            "roi": self.get_roi(),
+            "sharpe": self.get_sharpe_ratio(),
+            "mdd": self.get_max_drawdown(),
         }
         return evaluation_results

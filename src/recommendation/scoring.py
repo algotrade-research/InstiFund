@@ -1,7 +1,7 @@
 from src.recommendation.funds import InstitutionalScoring
 from src.recommendation.stocks import FinancialScoring
 from src.settings import logger, DATA_PATH
-from typing import List, Tuple
+from typing import List, Tuple, Dict, Any
 import pandas as pd
 import os
 
@@ -21,31 +21,19 @@ class StocksRanking:
     Rank stocks at a given month and year based on institutional and financial scores.
     """
 
-    def __init__(self, month: int, year: int, symbols: List[str]):
+    def __init__(self, month: int, year: int, symbols: List[str],
+                 params: Dict[str, Any]) -> None:
         # Calculate the last month, year, and quarter
         self.month = month
         self.year = year
         self.symbols = symbols
+        self.params = params
 
     def get_all_scores(self) -> pd.DataFrame:
         """
         Retrieve and merge institutional and financial scores for all symbols.
         If any scores are missing, set them to 0.
         """
-        # inst_scoring = InstitutionalScoring(
-        #     self.month, self.year, self.symbols
-        # ).get_scores()
-        # fin_scoring = FinancialScoring(
-        #     self.quarter, self.quarter_year, self.symbols
-        # ).get_scores()
-
-        # # Merge on symbol with an outer join to include all symbols
-        # df = pd.merge(inst_scoring, fin_scoring,
-        #               on="symbol", how="outer").fillna(0)
-
-        # logger.debug(
-        #     f"Scores DataFrame after merge: \n{df.head(10).to_string(index=False)}"
-        # )
         df = MONTHLY_SCORES_DF[
             (MONTHLY_SCORES_DF["month"] == self.month) &
             (MONTHLY_SCORES_DF["year"] == self.year) &
@@ -66,10 +54,12 @@ class StocksRanking:
                 df[column] = 0
 
         # Calculate institutional score
+        net_fund_change_w = 1.0 - self.params["fund_net_buying"]
+        - self.params["number_fund_holdings"]
         df["inst_score"] = (
-            0.35 * df["fund_net_buying"]
-            + 0.45 * df["number_fund_holdings"]
-            + 0.2 * df["net_fund_change"]
+            self.params["fund_net_buying"] * df["fund_net_buying"]
+            + self.params["number_fund_holdings"] * df["number_fund_holdings"]
+            + net_fund_change_w * df["net_fund_change"]
         ).fillna(0).clip(lower=0)
 
     def calculate_fin_score(self, df: pd.DataFrame) -> None:
@@ -94,11 +84,13 @@ class StocksRanking:
                 df[f"{column}_normalized"] = 0
 
         # Calculate financial score
+        de_weight = 1.0 - self.params["roe"] - \
+            self.params["revenue_growth"] - self.params["pe"]
         df["fin_score"] = (
-            0.30 * df["roe_normalized"]
-            + 0.20 * df["revenue_growth_normalized"]
-            + 0.15 * df["debt_to_equity_normalized"]
-            + 0.35 * df["pe_score_normalized"]
+            self.params["roe"] * df["roe_normalized"]
+            + self.params["revenue_growth"] * df["revenue_growth_normalized"]
+            + de_weight * df["debt_to_equity_normalized"]
+            + self.params["pe"] * df["pe_score_normalized"]
         ).fillna(0).clip(lower=0)
 
     def get_ranking(self) -> List[Tuple[str, float]]:
@@ -113,7 +105,8 @@ class StocksRanking:
         self.calculate_fin_score(df)
 
         # Combine scores into a total score
-        df["score"] = 0.6 * df["inst_score"] + 0.4 * df["fin_score"]
+        df["score"] = self.params["institutional_weight"] * df["inst_score"] \
+            + (1.0 - self.params["institutional_weight"]) * df["fin_score"]
 
         # Sort by score in descending order
         df = df.sort_values(by="score", ascending=False).reset_index(drop=True)

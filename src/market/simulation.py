@@ -54,7 +54,7 @@ class MarketSimulation:
         try:
             logger.debug(f"Loading market data from {file_path}")
             df = pd.read_csv(file_path, parse_dates=['datetime'])
-            logger.info("Market data loaded successfully.")
+            logger.debug("Market data loaded successfully.")
             return df
         except Exception as e:
             logger.error(f"Error loading market data: {e}")

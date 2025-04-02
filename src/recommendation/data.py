@@ -35,7 +35,7 @@ def get_stocks_list() -> List[str]:
     try:
         # logger.info("Fetching the list of stock symbols.")
         stock_list = FUND_DF["Category"].unique().tolist()
-        logger.info(f"Retrieved {len(stock_list)} unique stock symbols.")
+        logger.debug(f"Retrieved {len(stock_list)} unique stock symbols.")
         return stock_list
     except KeyError as e:
         logger.error(f"Failed to fetch stock symbols: {e}")

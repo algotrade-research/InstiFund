@@ -17,10 +17,6 @@ class Backtesting:
     """
     RELEASE_DAY = 20  # Day of the month when new data is released
     MAX_VOLUME = 20000  # Maximum volume of stocks to buy/sell in one transaction
-    NUMBER_OF_STOCKS = 3  # Number of stocks to keep in the portfolio
-    TRAILING_STOP_LOSS = 0.5  # 50% loss threshold to trigger a sell
-    TAKE_PROFIT = 0.25  # 25% profit threshold to trigger a sell
-    WEIGHTING_OPTION = 'softmax'  # Weighting option for stocks
 
     def __init__(self, start_date: datetime, end_date: datetime,
                  params: Dict[str, Any] = config["default_backtest_params"]):
@@ -35,13 +31,14 @@ class Backtesting:
         self.end_date = end_date
         self.portfolio = Portfolio("Test Portfolio", params["initial_balance"])
         self.NUMBER_OF_STOCKS = params.get(
-            "number_of_stocks", self.NUMBER_OF_STOCKS)
+            "number_of_stocks", 3)
         self.TRAILING_STOP_LOSS = params.get(
-            "trailing_stop_loss", self.TRAILING_STOP_LOSS)
+            "trailing_stop_loss", 0.35)
         self.TAKE_PROFIT = params.get(
-            "take_profit", self.TAKE_PROFIT)
+            "take_profit", 0.25)
         self.WEIGHTING_OPTION = params.get(
-            "stock_weight_option", self.WEIGHTING_OPTION)
+            "stock_weight_option", "softmax")
+        self.params = params
         self.simulation = MarketSimulation(start_date, end_date)
         self.stocks = get_stocks_list()  # List of available stocks
         self.top_stocks = []  # Top stocks for rebalancing
@@ -129,11 +126,14 @@ class Backtesting:
         logger.info(
             f"Date: {self.simulation.current_date.strftime('%Y-%m-%d')} - Rebalancing portfolio.")
         ranked_stocks = StocksRanking(self.simulation.current_date.month,
-                                      self.simulation.current_date.year, self.stocks).get_ranking()
+                                      self.simulation.current_date.year,
+                                      self.stocks,
+                                      self.params).get_ranking()
         self.top_stocks = [symbol for symbol,
                            _ in ranked_stocks[:self.NUMBER_OF_STOCKS]]
         logger.info(
-            f"Top {self.NUMBER_OF_STOCKS} stocks for rebalancing: {ranked_stocks[:self.NUMBER_OF_STOCKS]}")
+            f"Top {self.NUMBER_OF_STOCKS} stocks for rebalancing: "
+            f"{self.top_stocks}")
 
         # Sell stocks not in the top stocks
         for asset in list(self.portfolio.assets.keys()):
@@ -263,7 +263,7 @@ class Backtesting:
 
         logger.disabled = config.get("disable_logging", False)
         runtime = time.time() - start_time
-        logger.info(f"Backtesting completed in {runtime:.2f} seconds.")
+        logger.debug(f"Backtesting completed in {runtime:.2f} seconds.")
 
     def evaluate(self, result_dir: str):
         """
@@ -290,7 +290,7 @@ class Backtesting:
 
 if __name__ == '__main__':
     start_date = datetime(2024, 2, 1)
-    end_date = datetime(2025, 1, 31)  # The day must be >= 20
+    end_date = datetime(2024, 12, 31)  # The day must be >= 20
     initial_balance = 1000000
 
     backtesting = Backtesting(start_date, end_date)
