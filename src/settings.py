@@ -26,7 +26,7 @@ DATABASE = {
     "PORT": os.getenv("DB_PORT", "5432"),  # Default: 5432
 }
 
-DATA_PATH = os.getenv("DATA_PATH", "data")
+DATA_PATH = os.getenv("DATA_PATH", os.path.join(Path(__file__).parent, "data"))
 
 # Load logging configuration
 LOGGING_CONFIG_PATH = Path(__file__).parent.parent / "config" / "logging.conf"
@@ -38,4 +38,3 @@ logger.disabled = config.get("disable_logging", False)
 
 # Init Vnstock
 vnstock = Vnstock().stock(symbol="ACB", source="VCI")
-
