@@ -8,7 +8,7 @@ from src.settings import logger, DATA_PATH, config
 import numpy as np
 import pandas as pd
 import time
-from typing import List, Dict
+from typing import List, Dict, Any
 
 
 class Backtesting:
@@ -20,8 +20,10 @@ class Backtesting:
     NUMBER_OF_STOCKS = 3  # Number of stocks to keep in the portfolio
     TRAILING_STOP_LOSS = 0.5  # 50% loss threshold to trigger a sell
     TAKE_PROFIT = 0.25  # 25% profit threshold to trigger a sell
+    WEIGHTING_OPTION = 'softmax'  # Weighting option for stocks
 
-    def __init__(self, start_date: datetime, end_date: datetime, initial_balance: float):
+    def __init__(self, start_date: datetime, end_date: datetime,
+                 params: Dict[str, Any] = config["default_backtest_params"]):
         """
         Initialize the backtesting environment.
 
@@ -31,7 +33,15 @@ class Backtesting:
         """
         self.start_date = start_date
         self.end_date = end_date
-        self.portfolio = Portfolio("Test Portfolio", initial_balance)
+        self.portfolio = Portfolio("Test Portfolio", params["initial_balance"])
+        self.NUMBER_OF_STOCKS = params.get(
+            "number_of_stocks", self.NUMBER_OF_STOCKS)
+        self.TRAILING_STOP_LOSS = params.get(
+            "trailing_stop_loss", self.TRAILING_STOP_LOSS)
+        self.TAKE_PROFIT = params.get(
+            "take_profit", self.TAKE_PROFIT)
+        self.WEIGHTING_OPTION = params.get(
+            "stock_weight_option", self.WEIGHTING_OPTION)
         self.simulation = MarketSimulation(start_date, end_date)
         self.stocks = get_stocks_list()  # List of available stocks
         self.top_stocks = []  # Top stocks for rebalancing
@@ -132,7 +142,8 @@ class Backtesting:
 
         # Allocate 90% of the portfolio balance for buying stocks
         available_balance = self.portfolio.balance * 0.9
-        weights = self.get_weights(ranked_stocks, 'linear')
+        weights = self.get_weights(
+            ranked_stocks, self.WEIGHTING_OPTION)
 
         # Buy or adjust holdings for the top stocks
         for symbol in self.top_stocks:
@@ -199,7 +210,7 @@ class Backtesting:
 
         return False
 
-    def run(self, disable_logging: bool = False):
+    def run(self, disable_logging: bool = True):
         """
         Run the backtesting simulation.
 
@@ -264,15 +275,28 @@ class Backtesting:
         evaluator = Evaluate(evaluation_data, name="backtest")
         evaluator.evaluate(result_dir)
 
+    def get_roi(self) -> float:
+        """
+        Calculate the return on investment (ROI) for the portfolio.
+
+        :return: ROI as a percentage.
+        """
+        total_value = self.simulation.get_portfolio_statistics(
+            self.portfolio)['total_value']
+        roi = ((total_value - self.portfolio.initial_balance) /
+               self.portfolio.initial_balance) * 100
+        return roi
+
 
 if __name__ == '__main__':
-    start_date = datetime(2023, 2, 1)
-    end_date = datetime(2024, 1, 31)  # The day must be >= 20
+    start_date = datetime(2024, 2, 1)
+    end_date = datetime(2025, 1, 31)  # The day must be >= 20
     initial_balance = 1000000
 
-    backtesting = Backtesting(start_date, end_date, initial_balance)
-    backtesting.run()
+    backtesting = Backtesting(start_date, end_date)
+    backtesting.run(disable_logging=False)
     backtesting.evaluate(result_dir=DATA_PATH)
+    logger.info(f"ROI: {backtesting.get_roi():.2f}%")
 
     # save portfolio statistics to csv
     portfolio_df = pd.DataFrame(backtesting.portfolio_statistics)

@@ -2,4 +2,15 @@ crawler_cool_down: 4
 trading_fee: 0.0047
 risk_free_rate_annual: 0.05
 disable_logging: False
-debug: False
+debug: True
+default_backtest_params:
+  take_profit: 0.375
+  trailing_stop_loss: 0.2
+  fund_net_buying: 0.35
+  number_fund_holdings: 0.45
+  roe: 0.30
+  revenue_growth: 0.20
+  debt_to_equity: 0.15
+  number_of_stocks: 1
+  initial_balance: 1000000
+  stock_weight_option: "equal"
