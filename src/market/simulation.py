@@ -11,12 +11,29 @@ class MarketSimulation:
     A class to simulate market data for a given date range.
     """
 
+    @staticmethod
+    def load_market_data() -> pd.DataFrame:
+        """Load market data from a CSV file."""
+        file_path = f"{DATA_PATH}/daily_data.csv"
+        try:
+            logger.debug(f"Loading market data from {file_path}")
+            df = pd.read_csv(file_path, parse_dates=['datetime'])
+            logger.info("Market data loaded successfully.")
+            return df
+        except Exception as e:
+            logger.error(f"Error loading market data: {e}")
+            raise
+
+    MARKET_DATA = load_market_data()
+    MARKET_DATA_BY_DATE = {
+        date: group for date, group in MARKET_DATA.groupby("datetime")
+    }
+    TRADING_FEE = config["trading_fee"]
+
     def __init__(self, start_date: datetime, end_date: datetime) -> None:
         """Initialize the market simulation with a date range."""
         self.start_date = start_date
         self.end_date = end_date
-        self.market_data = self.load_market_data()
-        self.TRADING_FEE = config["trading_fee"]
 
         # Precompute trading days and filter market data for the date range
         self.trading_days = self._get_trading_days()
@@ -25,40 +42,23 @@ class MarketSimulation:
                 "No trading days available in the specified date range."
             )
 
-        # Cache market data by date for faster access
-        self.market_data_by_date = {
-            date: group for date, group in self.market_data.groupby("datetime")
-        }
-
         # Cache for the latest price of each stock
         self.latest_price_cache = {}
 
         logger.debug(f"Trading days: {self.trading_days}")
         self.current_trading_day_index = 0
         self.current_date = self.trading_days[self.current_trading_day_index]
-        self.current_data = self.market_data_by_date.get(
+        self.current_data = MarketSimulation.MARKET_DATA_BY_DATE.get(
             self.current_date, pd.DataFrame()
         )
 
     def _get_trading_days(self) -> List[datetime]:
         """Retrieve and sort trading days within the specified date range."""
-        trading_days = self.market_data[
-            (self.market_data["datetime"] >= self.start_date)
-            & (self.market_data["datetime"] <= self.end_date)
+        trading_days = MarketSimulation.MARKET_DATA[
+            (MarketSimulation.MARKET_DATA["datetime"] >= self.start_date)
+            & (MarketSimulation.MARKET_DATA["datetime"] <= self.end_date)
         ]["datetime"].drop_duplicates().sort_values()
         return trading_days.tolist()
-
-    def load_market_data(self) -> pd.DataFrame:
-        """Load market data from a CSV file."""
-        file_path = f"{DATA_PATH}/daily_data.csv"
-        try:
-            logger.debug(f"Loading market data from {file_path}")
-            df = pd.read_csv(file_path, parse_dates=['datetime'])
-            logger.debug("Market data loaded successfully.")
-            return df
-        except Exception as e:
-            logger.error(f"Error loading market data: {e}")
-            raise
 
     def step(self) -> bool:
         """
@@ -67,7 +67,7 @@ class MarketSimulation:
         if self.current_trading_day_index + 1 < len(self.trading_days):
             self.current_trading_day_index += 1
             self.current_date = self.trading_days[self.current_trading_day_index]
-            self.current_data = self.market_data_by_date.get(
+            self.current_data = MarketSimulation.MARKET_DATA_BY_DATE.get(
                 self.current_date, pd.DataFrame()
             )
             # update latest price cache
@@ -136,9 +136,9 @@ class MarketSimulation:
             return self.latest_price_cache[asset]
 
         # Retrieve the last available price from the market data
-        asset_data = self.market_data[
-            (self.market_data['tickersymbol'] == asset) &
-            (self.market_data['datetime'] <= self.current_date)
+        asset_data = MarketSimulation.MARKET_DATA[
+            (MarketSimulation.MARKET_DATA['tickersymbol'] == asset) &
+            (MarketSimulation.MARKET_DATA['datetime'] <= self.current_date)
         ].sort_values('datetime', ascending=False)
 
         if asset_data.empty:
@@ -193,4 +193,3 @@ class MarketSimulation:
         Check if the current date is the last trading day in the simulation.
         """
         return self.current_trading_day_index == len(self.trading_days) - 1
-
