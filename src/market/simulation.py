@@ -67,18 +67,17 @@ class MarketSimulation:
         if self.current_trading_day_index + 1 < len(self.trading_days):
             self.current_trading_day_index += 1
             self.current_date = self.trading_days[self.current_trading_day_index]
-            self.current_data = MarketSimulation.MARKET_DATA_BY_DATE.get(
-                self.current_date, pd.DataFrame()
-            )
+            # Directly retrieve the new market data
+            new_data = MarketSimulation.MARKET_DATA_BY_DATE.get(
+                self.current_date)
+            if new_data is not None:  # Avoid creating empty DataFrames
+                self.current_data = new_data
 
-            # Update the latest price cache using vectorized operations
-            if not self.current_data.empty:
-                self.latest_price_cache.update(
-                    self.current_data.set_index('tickersymbol')[
-                        'price'].to_dict()
-                )
-
-            # logger.debug(f"Advanced to next trading day: {self.current_date}")
+                # Update the latest price cache using NumPy for performance
+                tickers = new_data["tickersymbol"].values
+                prices = new_data["price"].values
+                self.latest_price_cache.update(zip(tickers, prices))
+                # logger.debug(f"Advanced to next trading day: {self.current_date}")
             return True
         else:
             logger.info("Simulation has reached the end date.")
