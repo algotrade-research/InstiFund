@@ -276,7 +276,7 @@ class Backtesting:
             })
 
         runtime = time.time() - start_time
-        logger.debug(f"Backtesting completed in {runtime:.2f} seconds.")
+        logger.info(f"Backtesting completed in {runtime:.2f} seconds.")
 
     def evaluate(self, result_dir: str):
         """

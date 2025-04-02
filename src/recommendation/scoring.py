@@ -2,11 +2,17 @@ from src.settings import logger, DATA_PATH
 from typing import List, Tuple, Dict, Any
 import pandas as pd
 import os
+from collections import defaultdict
 
 
 try:
     MONTHLY_SCORES_DF = pd.read_csv(
         os.path.join(DATA_PATH, "monthly_scores.csv"))
+    MONTHLY_SCORES_DF["symbol"] = MONTHLY_SCORES_DF["symbol"].astype(
+        "category")
+    MONTHLY_CACHE = defaultdict(pd.DataFrame)
+    for (m, y), df in MONTHLY_SCORES_DF.groupby(["month", "year"]):
+        MONTHLY_CACHE[(m, y)] = df.set_index("symbol")
     logger.info(
         f"Monthly scores data loaded successfully with {len(MONTHLY_SCORES_DF)} rows."
     )
@@ -41,22 +47,23 @@ class StocksRanking:
         Retrieve and merge institutional and financial scores for all symbols.
         If any scores are missing, set them to 0.
         """
-        df = MONTHLY_SCORES_DF[
-            (MONTHLY_SCORES_DF["month"] == self.month) &
-            (MONTHLY_SCORES_DF["year"] == self.year) &
-            (MONTHLY_SCORES_DF["symbol"].isin(self.symbols))
-        ].reset_index(drop=True)
-        return df
+        df = MONTHLY_CACHE.get((self.month, self.year))
+        self.symbols = list(
+            set(self.symbols).intersection(df.index.tolist())
+        )
+        if df is not None:
+            return df.loc[self.symbols].reset_index().copy()
+        # Empty if no match
+        return pd.DataFrame(columns=MONTHLY_SCORES_DF.columns)
 
     def calculate_institutional_score(self, df: pd.DataFrame) -> None:
         """
         Calculate the institutional score based on fund net buying, number of fund holdings, and net fund change.
         """
         # Normalize columns
-        df[["fund_net_buying", "number_fund_holdings",
-            "net_fund_change"]] = StocksRanking.normalize_columns(
-            df, ["fund_net_buying", "number_fund_holdings", "net_fund_change"]
-        )
+        columns = ["fund_net_buying",
+                   "number_fund_holdings", "net_fund_change"]
+        df[columns] = StocksRanking.normalize_columns(df, columns)
         # Calculate institutional score
         net_fund_change_w = 1.0 - self.params["fund_net_buying"]
         - self.params["number_fund_holdings"]
@@ -70,19 +77,15 @@ class StocksRanking:
         """
         Calculate the financial score (fin_score) based on ROE, PE, revenue growth, and debt-to-equity ratio.
         """
-        # Clip debt_to_equity for normalization
         df["debt_to_equity"] = df["debt_to_equity"].clip(lower=0.0, upper=2.0)
-
-        # Calculate P/E ratio score
         df["pe_score"] = (
             (df["revenue_growth"] - df["pe"]) / df["revenue_growth"]
         ).clip(lower=0.0)
 
         # Normalize columns
-        df[["roe", "revenue_growth", "debt_to_equity",
-            "pe_score"]] = StocksRanking.normalize_columns(
-                df, ["roe", "revenue_growth", "debt_to_equity", "pe_score"])
-        
+        columns = ["roe", "revenue_growth", "debt_to_equity", "pe_score"]
+        df[columns] = StocksRanking.normalize_columns(df, columns)
+
         # Calculate financial score
         de_weight = 1.0 - self.params["roe"] - \
             self.params["revenue_growth"] - self.params["pe"]
