@@ -337,7 +337,20 @@ if __name__ == '__main__':
 
     assert end_date.day >= 20, "End date must be after the 20th of the month."
 
-    backtesting = Backtesting(start_date, end_date)
+    if args.name == "out_sample":
+        with open(os.path.join(
+            DATA_PATH, "backtest",
+            "optimized_in_sample", "params.json"), 'r'
+        ) as f:
+            params = json.load(f)
+            logger.info(
+                f"Loaded optimized parameters for out_sample: {params}"
+            )
+            backtesting = Backtesting(
+                start_date, end_date, params=params)
+    else:
+        backtesting = Backtesting(start_date, end_date)
+
     backtesting.run()
     result_dir = f"{DATA_PATH}/backtest/{args.name}"
     os.makedirs(result_dir, exist_ok=True)
