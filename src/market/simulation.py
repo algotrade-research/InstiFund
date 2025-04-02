@@ -118,7 +118,7 @@ class MarketSimulation:
         price = self.current_data[self.current_data['tickersymbol']
                                   == symbol]['price'].values[0]
         total_revenue = price * quantity * (1 - self.TRADING_FEE)
-        logger.debug(f"Selling {quantity} shares of {symbol} at {price} each.")
+        # logger.debug(f"Selling {quantity} shares of {symbol} at {price} each.")
         return {
             'symbol': symbol,
             'quantity': quantity,
@@ -187,3 +187,10 @@ class MarketSimulation:
             'unrealized_profit_loss': unrealized_profit_loss,
             'realized_profit_loss': portfolio.realized_profit_loss
         }
+
+    def is_last_trading_day(self) -> bool:
+        """
+        Check if the current date is the last trading day in the simulation.
+        """
+        return self.current_trading_day_index == len(self.trading_days) - 1
+

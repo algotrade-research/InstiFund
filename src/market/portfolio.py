@@ -121,21 +121,6 @@ class Portfolio:
         else:
             raise ValueError(f"Asset {asset_name} not found in portfolio.")
 
-    def save_portfolio(self, file_path: str):
-        """
-        Save the portfolio to a CSV file.
-        """
-        data = {
-            'Asset': list(self.assets.keys()),
-            'Quantity': [self.assets[asset]['quantity'] for asset in self.assets],
-            'Average Price': [self.assets[asset]['average_price'] for asset in self.assets],
-            'Balance': self.balance,
-            'Realized P/L': self.realized_profit_loss,
-            'Transactions': [str(t) for t in self.transactions]
-        }
-        df = pd.DataFrame(data)
-        df.to_csv(file_path, index=False)
-
     def paid_value(self, asset_name: str, quantity: int) -> float:
         """
         Calculate the paid value of an asset in the portfolio.

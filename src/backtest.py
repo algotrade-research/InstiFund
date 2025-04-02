@@ -9,6 +9,9 @@ import numpy as np
 import pandas as pd
 import time
 from typing import List, Dict, Any
+import argparse
+import os
+import json
 
 
 class Backtesting:
@@ -65,6 +68,7 @@ class Backtesting:
             asset, quantity, sell_info['total_revenue'], sell_info['price'], sell_info['date']
         )
         logger.debug(
+            f"{self.simulation.current_date.date()} "
             f"Sold {quantity} shares of {asset} at {sell_info['price']} each. Realized P/L: {realized_pl:.2f}"
         )
         return True
@@ -86,6 +90,7 @@ class Backtesting:
             symbol, quantity, buy_info['total_cost'], buy_info['price'], buy_info['date']
         )
         logger.debug(
+            f"{self.simulation.current_date.date()} "
             f"Bought {quantity} shares of {symbol} at {buy_info['price']} each.")
         return True
 
@@ -123,8 +128,6 @@ class Backtesting:
         """
         Rebalance the portfolio based on the top-ranked stocks.
         """
-        logger.info(
-            f"Date: {self.simulation.current_date.strftime('%Y-%m-%d')} - Rebalancing portfolio.")
         ranked_stocks = StocksRanking(self.simulation.current_date.month,
                                       self.simulation.current_date.year,
                                       self.stocks,
@@ -132,6 +135,7 @@ class Backtesting:
         self.top_stocks = [symbol for symbol,
                            _ in ranked_stocks[:self.NUMBER_OF_STOCKS]]
         logger.info(
+            f"{self.simulation.current_date.date()} "
             f"Top {self.NUMBER_OF_STOCKS} stocks for rebalancing: "
             f"{self.top_stocks}")
 
@@ -197,14 +201,16 @@ class Backtesting:
 
         # Check take profit condition
         if (current_price - purchase_price) / purchase_price >= self.TAKE_PROFIT:
-            logger.debug(
+            logger.info(
+                f"{self.simulation.current_date.date()} "
                 f"Take profit triggered for {asset}. Current price: {current_price}")
             return True
 
         # Check trailing stop loss condition
         peak_price = self.peak_prices[asset]
         if (current_price - peak_price) / peak_price <= -self.TRAILING_STOP_LOSS:
-            logger.debug(
+            logger.info(
+                f"{self.simulation.current_date.date()} "
                 f"Trailing stop loss triggered for {asset}. Current price: {current_price}")
             return True
 
@@ -227,15 +233,28 @@ class Backtesting:
                 last_month = current_date.month
                 self.need_rebalance = True
 
-            # End simulation if it's the last month
-            if (current_date.month == self.end_date.month and
-                current_date.year == self.end_date.year and
-                    current_date.day >= self.RELEASE_DAY):
-                for asset, asset_data in list(self.portfolio.assets.items()):
-                    self.sell(asset, asset_data['quantity'])
-            elif current_date.day >= self.RELEASE_DAY and self.need_rebalance:
+            items = list(self.portfolio.assets.items())
+            is_last_trading_day = self.simulation.is_last_trading_day()
+            if is_last_trading_day:
+                logger.info(
+                    f"{current_date.date()} "
+                    f"Last trading day, sell all assets"
+                    f" in the portfolio: {', '.join(self.portfolio.assets.keys())}"
+                )
+
+            if (not is_last_trading_day
+                and current_date.day >= self.RELEASE_DAY
+                    and self.need_rebalance):
                 # Rebalance portfolio
                 self.rebalance_portfolio()
+
+            # Check sell conditions for each asset
+            for asset, asset_data in items:
+                current_price = self.simulation.get_last_available_price(asset)
+                if (is_last_trading_day
+                    or (current_price > 0
+                        and self.check_sell_conditions(asset, current_price))):
+                    self.sell(asset, asset_data['quantity'])
 
             # # Retrieve daily statistics from the portfolio
             daily_stats = self.portfolio.get_daily_statistics(
@@ -254,13 +273,6 @@ class Backtesting:
                 "sum_of_losers": daily_stats['sum_of_losers'],
             })
 
-            # Check sell conditions for each asset
-            items = list(self.portfolio.assets.items())
-            for asset, asset_data in items:
-                current_price = self.simulation.get_last_available_price(asset)
-                if current_price > 0 and self.check_sell_conditions(asset, current_price):
-                    self.sell(asset, asset_data['quantity'])
-
         logger.disabled = config.get("disable_logging", False)
         runtime = time.time() - start_time
         logger.debug(f"Backtesting completed in {runtime:.2f} seconds.")
@@ -275,29 +287,57 @@ class Backtesting:
         evaluator = Evaluate(evaluation_data, name="backtest")
         evaluator.evaluate(result_dir)
 
-    def get_roi(self) -> float:
+    def save_portfolio(self, result_dir: str):
         """
-        Calculate the return on investment (ROI) for the portfolio.
+        Save the portfolio statistics to a CSV file.
 
-        :return: ROI as a percentage.
+        :param result_dir: Directory to save portfolio statistics.
         """
-        total_value = self.simulation.get_portfolio_statistics(
-            self.portfolio)['total_value']
-        roi = ((total_value - self.portfolio.initial_balance) /
-               self.portfolio.initial_balance) * 100
-        return roi
+        portfolio_df = pd.DataFrame(self.portfolio_statistics)
+        portfolio_df.to_csv(os.path.join(result_dir, "portfolio.csv"),
+                            index=False)
+        logger.info(
+            f"Portfolio statistics saved to {result_dir}/portfolio.csv")
+
+        transaction_history = self.portfolio.transactions
+        transaction_df = pd.DataFrame(transaction_history)
+        transaction_df['datetime'] = pd.to_datetime(
+            transaction_df['datetime']).dt.strftime('%Y-%m-%d')
+        transaction_df.set_index('datetime', inplace=True)
+        transaction_df.sort_index(inplace=True)
+        transaction_df.to_csv(os.path.join(result_dir, "transactions.csv"),
+                              index=False)
+        logger.info(
+            f"Transaction history saved to {result_dir}/transactions.csv")
+
+        # save params to JSON file
+        params_file = os.path.join(result_dir, "params.json")
+        with open(params_file, 'w') as f:
+            json.dump(self.params, f, indent=4)
+        logger.info(f"Parameters saved to {params_file}")
 
 
 if __name__ == '__main__':
-    start_date = datetime(2024, 2, 1)
-    end_date = datetime(2024, 12, 31)  # The day must be >= 20
-    initial_balance = 1000000
+    parser = argparse.ArgumentParser(description="Backtesting script")
+    parser.add_argument("--start_date", type=str, required=True,
+                        help="Start date for backtesting (YYYY-MM-DD)")
+    parser.add_argument("--end_date", type=str, required=True,
+                        help="End date for backtesting (YYYY-MM-DD)")
+    parser.add_argument("--disable_logging", action="store_true",
+                        default=False,
+                        help="Disable logging during backtesting")
+    parser.add_argument("--name", type=str, required=True,
+                        help="Name for the backtest")
+    args = parser.parse_args()
+
+    start_date = datetime.strptime(args.start_date, "%Y-%m-%d")
+    end_date = datetime.strptime(args.end_date, "%Y-%m-%d")
+
+    assert end_date.day >= 20, "End date must be after the 20th of the month."
 
     backtesting = Backtesting(start_date, end_date)
     backtesting.run(disable_logging=False)
-    backtesting.evaluate(result_dir=DATA_PATH)
-    logger.info(f"ROI: {backtesting.get_roi():.2f}%")
-
-    # save portfolio statistics to csv
-    portfolio_df = pd.DataFrame(backtesting.portfolio_statistics)
-    portfolio_df.to_csv(f"{DATA_PATH}/portfolio_statistics.csv", index=False)
+    result_dir = f"{DATA_PATH}/backtest/{args.name}"
+    os.makedirs(result_dir, exist_ok=True)
+    backtesting.evaluate(result_dir=result_dir)
+    backtesting.save_portfolio(result_dir=result_dir)
