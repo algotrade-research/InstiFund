@@ -1,22 +1,24 @@
 from src.recommendation.funds import InstitutionalScoring
 from src.recommendation.stocks import FinancialScoring
-from src.recommendation.data import get_stocks_list
+from src.recommendation.data import get_stocks_list, FUND_DF, FINANCIAL_DF
 from src.settings import logger, DATA_PATH
 
 import pandas as pd
 import os
-from typing import List, Tuple
 from datetime import datetime
-import argparse
 
 
-def main(start_date: datetime, end_date: datetime) -> None:
+def main() -> None:
     """
     Preprocess the ratios and scores for stocks and funds.
     """
-
     # Get all symbols from the FUND_DF DataFrame
     symbols = get_stocks_list()
+
+    start_year = min(FUND_DF["Date"].min().year, FINANCIAL_DF["year"].min())
+    end_year = max(FUND_DF["Date"].max().year, FINANCIAL_DF["year"].max()) + 1
+    start_date = datetime(year=start_year, month=1, day=1)
+    end_date = datetime(year=end_year, month=12, day=31)
 
     logger.info(f"Symbols: {symbols}")
     logger.info(f"Start date: {start_date}, End date: {end_date}")
@@ -85,15 +87,4 @@ def main(start_date: datetime, end_date: datetime) -> None:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Stocks Crawler for daily data")
-    parser.add_argument("--start_date", type=str,
-                        help="Start date in YYYY-MM-DD format")
-    parser.add_argument("--end_date", type=str,
-                        help="End date in YYYY-MM-DD format")
-    args = parser.parse_args()
-
-    start_date = datetime.strptime(args.start_date, "%Y-%m-%d")
-    end_date = datetime.strptime(args.end_date, "%Y-%m-%d")
-
-    main(start_date, end_date)
+    main()
