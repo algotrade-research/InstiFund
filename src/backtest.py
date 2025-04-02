@@ -126,7 +126,7 @@ class Backtesting:
 
     def rebalance_portfolio(self):
         """
-        Rebalance the portfolio based on the top-ranked stocks.
+        Optimized rebalancing function.
         """
         ranked_stocks = StocksRanking(self.simulation.current_date.month,
                                       self.simulation.current_date.year,
@@ -134,25 +134,28 @@ class Backtesting:
                                       self.params).get_ranking()
         self.top_stocks = [symbol for symbol,
                            _ in ranked_stocks[:self.NUMBER_OF_STOCKS]]
-        logger.info(
-            f"{self.simulation.current_date.date()} "
-            f"Top {self.NUMBER_OF_STOCKS} stocks for rebalancing: "
-            f"{self.top_stocks}")
+        logger.info(f"{self.simulation.current_date.date()} "
+                    f"Top {self.NUMBER_OF_STOCKS} stocks for rebalancing: {self.top_stocks}")
 
-        # Sell stocks not in the top stocks
-        for asset in list(self.portfolio.assets.keys()):
-            if asset not in self.top_stocks:
-                self.sell(asset, self.portfolio.assets[asset]['quantity'])
+        # Step 1: Sell stocks not in top list
+        current_assets = list(self.portfolio.assets.keys())
+        assets_to_sell = [
+            asset for asset in current_assets if asset not in self.top_stocks]
 
-        # Allocate 90% of the portfolio balance for buying stocks
+        for asset in assets_to_sell:
+            self.sell(asset, self.portfolio.assets[asset]['quantity'])
+
+        # Step 2: Allocate funds for buying
         available_balance = self.portfolio.balance * 0.9
-        weights = self.get_weights(
-            ranked_stocks, self.WEIGHTING_OPTION)
+        weights = self.get_weights(ranked_stocks, self.WEIGHTING_OPTION)
 
-        # Buy or adjust holdings for the top stocks
+        # Step 3: Fetch stock prices in a single loop
+        latest_price_cache = {symbol: self.simulation.get_last_available_price(symbol) * 1.01
+                              for symbol in self.top_stocks}
+
+        # Step 4: Buy or adjust holdings for top stocks
         for symbol in self.top_stocks:
-            stock_price = self.simulation.get_last_available_price(
-                symbol) * 1.01
+            stock_price = latest_price_cache.get(symbol)
             if not stock_price or stock_price <= 0:
                 logger.warning(f"Failed to get price for {symbol}. Skipping.")
                 continue
@@ -168,6 +171,7 @@ class Backtesting:
             elif desired_quantity < current_quantity:
                 self.sell(symbol, current_quantity - desired_quantity)
 
+        # Step 5: Check if rebalancing is complete
         if self.is_matched_top_stocks():
             self.need_rebalance = False
 
