@@ -256,27 +256,29 @@ def save_financial_data_to_csv(financial_df: pd.DataFrame):
     logger.info(f"Financial data saved to {file_path}.")
 
 
-def main(start_date: datetime, end_date: datetime):
+def main(start_date: datetime, end_date: datetime, action: str):
     """
     Main function to run the stocks crawler.
     """
     # Retrieve daily data
-    try:
-        logger.info(
-            f"Starting data retrieval for range: {start_date} to {end_date}.")
-        daily_data = get_daily_data(start_date, end_date)
-        save_daily_data_to_csv(daily_data)
-    except Exception as e:
-        logger.error(f"An error occurred while retrieving daily data: {e}")
+    if action == "daily" or action == "all":
+        try:
+            logger.info(
+                f"Starting data retrieval for range: {start_date} to {end_date}.")
+            daily_data = get_daily_data(start_date, end_date)
+            save_daily_data_to_csv(daily_data)
+        except Exception as e:
+            logger.error(f"An error occurred while retrieving daily data: {e}")
 
     # Retrieve financial data
-    try:
-        logger.info(
-            f"Starting financial data retrieval for range: {start_date} to {end_date}.")
-        financial_df = get_financial_data(start_date, end_date)
-        save_financial_data_to_csv(financial_df)
-    except Exception as e:
-        logger.error(f"An error occurred while retrieving financial data: {e}")
+    if action == "financial" or action == "all":
+        try:
+            logger.info(
+                f"Starting financial data retrieval for range: {start_date} to {end_date}.")
+            financial_df = get_financial_data(start_date, end_date)
+            save_financial_data_to_csv(financial_df)
+        except Exception as e:
+            logger.error(f"An error occurred while retrieving financial data: {e}")
 
     logger.info("Crawler finished running.")
 
@@ -288,9 +290,13 @@ if __name__ == "__main__":
                         help="Start date in YYYY-MM-DD format")
     parser.add_argument("--end_date", type=str,
                         help="End date in YYYY-MM-DD format")
+    parser.add_argument("--action", type=str,
+                        choices=["daily", "financial", "all"],
+                        help="Action to perform: daily or financial or both",
+                        default="all")
     args = parser.parse_args()
 
     start_date = datetime.strptime(args.start_date, "%Y-%m-%d")
     end_date = datetime.strptime(args.end_date, "%Y-%m-%d")
 
-    main(start_date, end_date)
+    main(start_date, end_date, args.action)
