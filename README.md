@@ -46,7 +46,8 @@ This `README.md` file serves as an example how a this will look like in a standa
 ```bash
 python3 -m venv venv
 source venv/bin/activate # for Linux/MacOS
-.\venv\Scripts\activate. # for Windows
+.\venv\Scripts\activate.bat # for Windows command line
+.\venv\Scripts\Activate.ps1 # for Windows PowerShell
 ```
 2. Install the required packages
 ```bash
@@ -61,7 +62,7 @@ DB_USER=<database user name>
 DB_PASSWORD=<database password>
 DB_HOST=<host name or IP address>
 DB_PORT=<database port>
-DATA_PATH=<path to the data folder of your choice>
+DATA_PATH=<path to the data folder of your choice, if not specified, the default is `data`>
 ```
 The `DATA_PATH` variable is used to specify the path to the data folder where the input data is stored. The other variables are used to connect to the database (the project is tested on Algotrade internship database, these variables can be ignored if you are not using the database).
 
@@ -76,28 +77,63 @@ Fund Code,Date,Category,Quantity,Market Price,Value,Total Asset Ratio
 VCBF-BCF,2023-01-01,ACB,504488.0,26050.0,13141912400.0,0.0352110336932618
 ...
 ```
-2. Retrieve daily price and quantity data of Vietnamese stocks
+2. Retrieve daily price, quantity and financial data of Vietnamese stocks
 If you have access to Algotrade internship database, you can use the following command to retrieve the data. 
 ```bash
-python -m src.stocks_crawler
+python -m src.stocks_crawler --start_date 2022-01-01 --end_date 2025-01-31
 ```
-The result will be stored in the `<DATA_PATH>/daily_data.csv` file. The data is stored with the following format:
+The daily stock price results will be stored in the `<DATA_PATH>/daily_data.csv` file. The data is stored with the following format:
 ```csv
 datetime,tickersymbol,price,quantity
 2024-12-31,VIC,40.55,1784400
 ...
 ```
-If you do not have access to the database, you can download the CSV file on [this](https://drive.google.com/file/d/1e_0gvRgPL3xE6ofofpsHW51lv1X9u_9f/view?usp=sharing) Google Drive link and put it in the `<DATA_PATH>` folder. The data is stored with the same format as above.
 
+Stocks financial portfolio data will be stored in the `<DATA_PATH>/financial_data.csv` file. The data is stored with the following format:
+```csv
+Revenue,year,quarter,Cash,Liabilities,P/E,ROE,Financial Leverage,Debt/Equity,tickersymbol
+9053845000000,2022,1,6281931000000,480433095000000,7.7889284027,0.236563115,10.966802399327864,9.9668023993,ACB
+...
+```
+
+### Data processing
+Now we preprocess the financial data and institutional data to prepare for backtesting step.
+```bash
+python -m src.preprocess
+```
+The result will be stored in the `<DATA_PATH>/monthly_scores.csv` file. The data is stored with the following format:
+```csv
+symbol,fund_net_buying,number_fund_holdings,net_fund_change,roe,debt_to_equity,revenue_growth,pe,month,year
+ACB,0.18949771689497716,3.0,3.0,0.2649167736,9.401935188,15.362221323862574,6.1561819167,2,2023
+...
+```
+
+### In-sample Backtesting
+- To init parameters for the first run, access `config/config.yaml` file and adjust the `default_backtest_params`.
+- For this project, we use data of the period from 2023-02-01 to 2024-01-31 as the in-sample period. 
+```bash
+python -m src.backtest --start_date 2023-02-01 --end_date 2024-01-31 --name in_sample
+```
+The result will be stored in the `<DATA_PATH>/backtest/in_sample` folder.
+
+### Optimization
+Run this command to start the optimization process. You can specify the number of trials to run using the `--trials` argument if needed. You can also adjust the random seed by editing `random_seed` in the `config/config.yaml` file. The default random seed is 42.
+```bash
+py -m src.optimize  
+```
+The result will be stored in the `<DATA_PATH>/optimization` folder.
 
 ## In-sample Backtesting
 - Describe the In-sample Backtesting step
     - Parameters
     - Data
 - Step 4 of the Nine-Step
+
+
 ### In-sample Backtesting Result
 - Brieftly shown the result: table, image, etc.
 - Has link to the In-sample Backtesting Report
+- [Backtesting report file](/doc/report/backtesting/backtesting-report.pdf)
 
 ## Optimization
 - Describe the Optimization step
@@ -105,6 +141,7 @@ If you do not have access to the database, you can download the CSV file on [thi
     - Parameters to optimize
     - Hyper-parameter of the optimize process
 - Step 5 of the Nine-Step
+
 ### Optimization Result
 - Brieftly shown the result: table, image, etc.
 - Has link to the Optimization Report
@@ -114,7 +151,7 @@ If you do not have access to the database, you can download the CSV file on [thi
     - Parameter
     - Data
 - Step 6 of th Nine-Step
-### Out-of-sample Backtesting Reuslt
+### Out-of-sample Backtesting Result
 - Brieftly shown the result: table, image, etc.
 - Has link to the Out-of-sample Backtesting Report
 
