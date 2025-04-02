@@ -1,4 +1,4 @@
-from src.settings import DATABASE, DATA_PATH, logger, vnstock, config
+from src.settings import DATABASE, DATA_PATH, logger, config
 from src.recommendation.data import get_stocks_list
 # from src.recommendation.stocks import USED_COLUMNS
 import psycopg2
@@ -114,66 +114,12 @@ def save_daily_data_to_csv(daily_data: pd.DataFrame):
     logger.info(f"Daily data saved to {file_path}.")
 
 
-# def get_financial_data(start_date: datetime, end_date: datetime, daily_data: pd.DataFrame) -> pd.DataFrame:
-#     """
-#     Retrieve financial data and add last close price.
-#     If any stock is missing a column in USED_COLUMNS for a quarter, fill it with the previous quarter's value.
-#     """
-#     stocks_list = get_stocks_list()
-#     if not stocks_list:
-#         logger.warning("No stocks found in the stock list.")
-#         raise ValueError("No stocks found in the stock list.")
-
-#     logger.info(f"Stock list: {stocks_list}")
-
-#     query = FINANCIAL_QUERY
-#     params = (start_date.year, end_date.year, stocks_list, USED_COLUMNS)
-#     financial_results = execute_query(query, params)
-
-#     if not financial_results:
-#         logger.warning("No financial data found for the given date range.")
-#         return pd.DataFrame()
-
-#     financial_df = pd.DataFrame(financial_results)
-#     logger.info("Financial data retrieved successfully.")
-
-#     return financial_df
-
-
-# def fill_missing_financial_data(financial_df: pd.DataFrame) -> pd.DataFrame:
-#     """
-#     Fill missing financial data for each stock and quarter using the previous quarter's values.
-#     """
-#     # Sort the financial data by tickersymbol, year, and quarter
-#     financial_df.sort_values(
-#         by=["tickersymbol", "year", "quarter"], inplace=True)
-
-#     # Pivot the data to make it easier to work with
-#     pivot_df = financial_df.pivot_table(
-#         index=["tickersymbol", "year", "quarter"],
-#         columns="name",
-#         values="value",
-#         aggfunc="first"
-#     ).reset_index()
-
-#     # Iterate through each stock and fill missing values
-#     for column in USED_COLUMNS:
-#         pivot_df[column] = pivot_df.groupby(
-#             "tickersymbol")[column].fillna(method="ffill")
-
-#     # Melt the data back to the original format
-#     filled_df = pivot_df.melt(
-#         id_vars=["tickersymbol", "year", "quarter"],
-#         var_name="name",
-#         value_name="value"
-#     )
-
-#     return filled_df
-
 def get_financial_data(start_date: datetime, end_date: datetime) -> pd.DataFrame:
     """
     Retrieve financial data for the given date range.
     """
+    from src.settings import vnstock
+
     logger.info(f"Fetching financial data from {start_date} to {end_date}.")
     if start_date > end_date:
         logger.error("Start date must be before end date.")
@@ -278,7 +224,8 @@ def main(start_date: datetime, end_date: datetime, action: str):
             financial_df = get_financial_data(start_date, end_date)
             save_financial_data_to_csv(financial_df)
         except Exception as e:
-            logger.error(f"An error occurred while retrieving financial data: {e}")
+            logger.error(
+                f"An error occurred while retrieving financial data: {e}")
 
     logger.info("Crawler finished running.")
 

@@ -17,6 +17,14 @@ with open(CONFIG_YAML_PATH, "r") as file:
 
 DEBUG = config.get("debug", True)
 
+# Load logging configuration
+LOGGING_CONFIG_PATH = Path(__file__).parent.parent / "config" / "logging.conf"
+logging.config.fileConfig(LOGGING_CONFIG_PATH, defaults={
+                          'sys.stdout': sys.stdout})
+logger = logging.getLogger("my_logger")
+logger.setLevel(logging.DEBUG if DEBUG else logging.INFO)
+logger.disabled = config.get("disable_logging", False)
+
 # Database connection
 DATABASE = {
     "NAME": os.getenv("DB_NAME"),
@@ -26,15 +34,14 @@ DATABASE = {
     "PORT": os.getenv("DB_PORT", "5432"),  # Default: 5432
 }
 
-DATA_PATH = os.getenv("DATA_PATH", os.path.join(Path(__file__).parent, "data"))
+DATA_PATH = os.getenv("DATA_PATH", Path(__file__).parent.parent / "data")
 
-# Load logging configuration
-LOGGING_CONFIG_PATH = Path(__file__).parent.parent / "config" / "logging.conf"
-logging.config.fileConfig(LOGGING_CONFIG_PATH, defaults={
-                          'sys.stdout': sys.stdout})
-logger = logging.getLogger("my_logger")
-logger.setLevel(logging.DEBUG if DEBUG else logging.INFO)
-logger.disabled = config.get("disable_logging", False)
+if not os.path.exists(DATA_PATH):
+    os.makedirs(DATA_PATH)
+    logger.info(f"Data path created at {DATA_PATH}")
+else:
+    logger.info(f"Data path already exists at {DATA_PATH}")
+
 
 # Init Vnstock
 vnstock = Vnstock().stock(symbol="ACB", source="VCI")
