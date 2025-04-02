@@ -220,7 +220,8 @@ class Backtesting:
         """
         Run the backtesting simulation.
         """
-        logger.info("Starting backtesting process.")
+        logger.info(f"Starting backtesting process for the period "
+                    f"{self.start_date.date()} to {self.end_date.date()}")
         start_time = time.time()
         last_month = self.simulation.current_date.month
 
@@ -282,6 +283,9 @@ class Backtesting:
         evaluation_data = pd.DataFrame(self.portfolio_statistics)
         evaluator = Evaluate(evaluation_data, name="backtest")
         evaluator.evaluate(result_dir)
+        logger.info(
+            f"Results: {evaluator.quick_evaluate()}"
+        )
 
     def save_portfolio(self, result_dir: str):
         """
@@ -315,19 +319,21 @@ class Backtesting:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Backtesting script")
-    parser.add_argument("--start_date", type=str, required=True,
-                        help="Start date for backtesting (YYYY-MM-DD)")
-    parser.add_argument("--end_date", type=str, required=True,
-                        help="End date for backtesting (YYYY-MM-DD)")
     parser.add_argument("--disable_logging", action="store_true",
                         default=False,
                         help="Disable logging during backtesting")
     parser.add_argument("--name", type=str, required=True,
                         help="Name for the backtest")
     args = parser.parse_args()
+    sample_type = args.name
+    if (sample_type not in config
+        or config[sample_type]["start_date"] is None
+            or config[sample_type]["end_date"] is None):
+        raise ValueError(f"Invalid sample type: {sample_type}")
 
-    start_date = datetime.strptime(args.start_date, "%Y-%m-%d")
-    end_date = datetime.strptime(args.end_date, "%Y-%m-%d")
+    start_date = datetime.strptime(
+        config[sample_type]["start_date"], "%Y-%m-%d")
+    end_date = datetime.strptime(config[sample_type]["end_date"], "%Y-%m-%d")
 
     assert end_date.day >= 20, "End date must be after the 20th of the month."
 

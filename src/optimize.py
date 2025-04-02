@@ -8,6 +8,7 @@ from src.settings import logger, config, DATA_PATH
 import pandas as pd
 from typing import Dict, Any
 from datetime import datetime
+import argparse
 
 
 class Optimizer:
@@ -59,9 +60,11 @@ class Optimizer:
         results = Evaluate(data,
                            name=f"backtest_trial_{trial.number}"
                            ).quick_evaluate()
-        results["roi"] /= 100
-        target = 0.2 * results["roi"] + 0.4 * \
-            results["sharpe"] + 0.4 * results["mdd"]
+        mdd_score = (1.0 if results["mdd"] >= -0.15
+                     else 1 - ((-0.15) - results["mdd"])/((-0.15) - (-1.0)))
+        sharpe_score = (1.0 if results["sharpe"] >= 3.0
+                        else results["sharpe"]/3.0)
+        target = 0.6 * sharpe_score + 0.4 * mdd_score
         return target
 
     def optimize(self, n_trials: int = 100) -> None:
@@ -120,15 +123,21 @@ class Optimizer:
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Optimize backtest parameters using Optuna.")
+    parser.add_argument("--n_trials", type=int, default=100,
+                        help="Number of trials to run.")
+    args = parser.parse_args()
     # Define the backtesting date range
-    start_date = datetime(2023, 2, 1)
-    end_date = datetime(2024, 1, 31)
+    start_date = datetime.strptime(
+        config["in_sample"]["start_date"], "%Y-%m-%d")
+    end_date = datetime.strptime(config["in_sample"]["end_date"], "%Y-%m-%d")
 
     # Initialize the optimizer
     optimizer = Optimizer(start_date=start_date, end_date=end_date)
 
     # Run the optimization
-    optimizer.optimize(n_trials=10)
+    optimizer.optimize(n_trials=args.n_trials)
 
     # Define the output directory
     output_dir = os.path.join(DATA_PATH, "optimization")
@@ -148,6 +157,10 @@ if __name__ == "__main__":
         params=params
     )
     backtest.run()
-    data = pd.DataFrame(backtest.portfolio_statistics)
-    results = Evaluate(data, name="final_backtest").quick_evaluate()
-    logger.info(f"Final backtest results: {results}")
+
+    # Save the backtest results
+    optimized_result_dir = os.path.join(
+        DATA_PATH, "backtest", "optimized_in_sample")
+    os.makedirs(optimized_result_dir, exist_ok=True)
+    backtest.evaluate(result_dir=optimized_result_dir)
+    backtest.save_portfolio(result_dir=optimized_result_dir)

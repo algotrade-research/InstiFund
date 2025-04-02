@@ -380,8 +380,8 @@ class Evaluate:
         - Maximum Drawdown
         """
         evaluation_results = {
-            "roi": self.get_roi(),
-            "sharpe": self.get_sharpe_ratio(),
-            "mdd": self.get_max_drawdown(),
+            "roi": float(self.get_roi()),
+            "sharpe": float(self.get_sharpe_ratio()),
+            "mdd": float(self.get_max_drawdown()),
         }
         return evaluation_results
