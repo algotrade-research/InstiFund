@@ -14,10 +14,10 @@ import argparse
 
 class Optimizer:
     def __init__(self, start_date: datetime, end_date: datetime,
-                 result_dir: str, min_n_stocks: int) -> None:
+                 result_dir: str, n_stocks: int) -> None:
         self.start_date = start_date
         self.end_date = end_date
-        self.min_n_stocks = min_n_stocks
+        self.n_stocks = n_stocks
         self.result_dir = result_dir
         self.study = None  # Store the study object for reuse
 
@@ -47,11 +47,9 @@ class Optimizer:
         """
         # Define the parameter search space
         params = config["default_backtest_params"]
-
+        params["n_stocks"] = self.n_stocks
         params["trailing_stop_loss"] = trial.suggest_float(
             "trailing_stop_loss", 0.05, 0.5, step=0.025)
-        params["number_of_stocks"] = trial.suggest_int(
-            "number_of_stocks", self.min_n_stocks, 5, step=1)
         params["stock_weight_option"] = trial.suggest_categorical(
             "stock_weight_option", ["softmax", "equal", "linear"])
         params["take_profit"] = trial.suggest_float(
@@ -144,8 +142,8 @@ if __name__ == "__main__":
         description="Optimize backtest parameters using Optuna.")
     parser.add_argument("--n_trials", type=int, default=100,
                         help="Number of trials to run.")
-    parser.add_argument("--min_n_stocks", type=int, default=3,
-                        help="Minimum number of stocks to select.")
+    parser.add_argument("--n_stocks", type=int, default=3,
+                        help="Number of stocks to select each month.")
     args = parser.parse_args()
     # Define the backtesting date range
     start_date = datetime.strptime(
@@ -160,7 +158,7 @@ if __name__ == "__main__":
     optimizer = Optimizer(start_date=start_date,
                           end_date=end_date,
                           result_dir=output_dir,
-                          min_n_stocks=args.min_n_stocks)
+                          n_stocks=args.n_stocks)
 
     # Run the optimization
     remaining_trials = args.n_trials - len(optimizer.study.trials)
