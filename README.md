@@ -33,7 +33,7 @@ In addition to smart-beta strategy that use quantitative factors to select stock
 ### Data collection
 #### VCBF open-end fund financial portfolio
 - The VCBF open-end fund's financial portfolio is collected from [VCBF](https://vcbf.com.vn/) website using web scraping. I download excel files from crawled links and extract necessary data to CSV files.
-- The data is collected using the `src.crawler.vcbf_crawler` module. The data is stored in the `<DATA_PATH>/VCBF/fund_portfolios.csv` file.
+- The data is collected using the `src.crawler.vcbf_crawler` module. The files are stored in `<DATA_PATH>/VCBF/downloaded/`.
 - Due to VCBF only started publishing report in excel format since late 2022, I only collect data from 2022-11-01 to 2025-01-31. 
 - The retrieved list of stocks are used to select stocks, which means other stocks that are not in the list will be ignored in the strategy.
 
@@ -41,12 +41,23 @@ In addition to smart-beta strategy that use quantitative factors to select stock
 - The daily price and quantity of Vietnamese stocks are collected from Algotrade internship database using SQL queries. 
 - The data is collected using the `src.crawler.stocks_crawler` module. 
 - The data is stored in the `<DATA_PATH>/daily_data.csv` file. 
-- By default, the data is collected from 2022-01-01 to 2025-01-31. You can change the time range by changing the `start_date` and `end_date` parameters in the `config/config.yaml` file.
+- By default, the data is collected from 2022-01-01 to 2025-01-31. You can change the time range by changing the `start_date` and `end_date` parameters of `data_collection` in the `config/config.yaml` file.
 
 #### Stocks financial portfolio data
-- Financial information of the stocks 
+- Financial information of the stocks is collected using Vnstock library, which use VCI data source to return financial information of the stocks.
+- The data is collected using the `src.crawler.stocks_crawler` module.
+- The data is stored in the `<DATA_PATH>/financial_data.csv` file.
+- The time range is the same as the daily price and quantity of Vietnamese stocks.
+
 ### Data Processing
-- Step 3 of the Nine-Step
+#### Extract VCBF open-end fund financial portfolio
+- The downloaded excel files are extracted to CSV files. The results are stored in `<DATA_PATH>/VCBF/extracted/` folder.
+- These CSV files are then merged into a single CSV file and stored in `<DATA_PATH>/VCBF/fund_portfolios.csv` file.
+
+#### Monthly scores preprocessing
+- To speed up backtest process, I preprocess the financial scores and institutional scores into a single CSV file named `<DATA_PATH>/monthly_scores.csv` file.
+- The preprocessing process is done using the `src.preprocess` module.
+- Details of the scores calculation are described in the Backtesting section below.
 
 ## Implementation
 - Briefly describe the implemetation.
@@ -183,26 +194,18 @@ The result will be stored in the `<DATA_PATH>/backtest/out_sample` folder.
     - Parameter
     - Data
 - Step 6 of th Nine-Step
+
 ### Out-of-sample Backtesting Result
 - Brieftly shown the result: table, image, etc.
 - Has link to the Out-of-sample Backtesting Report
 
 ## Paper Trading
-- Describe the Paper Trading step
-- Step 7 of the Nine-Step
-- Optional
-### Optimization Result
-- Brieftly shown the result: table, image, etc.
-- Has link to the Paper Trading Report
-
+- Not yet implemented
 
 ## Conclusion
 - What is the conclusion?
 - Optional
 
 ## Reference
-- All the reference goes here.
 
-## Other information
-- Link to the Final Report (Paper) should be somewhere in the `README.md` file.
-- Please make sure this file is relatively easy to follow.
+
