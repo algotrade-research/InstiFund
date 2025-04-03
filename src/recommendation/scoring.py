@@ -106,8 +106,13 @@ class StocksRanking:
         # Calculate financial score
         de_weight = 1.0 - self.params["roe"] - \
             self.params["revenue_growth"] - self.params["pe"]
+        if abs(de_weight) < 1e-6:
+            de_weight = 0.0
         assert de_weight >= 0.0, (
             f"Invalid weight for debt-to-equity: {de_weight}"
+            f" (roe: {self.params['roe']}, "
+            f"revenue_growth: {self.params['revenue_growth']}, "
+            f"pe: {self.params['pe']})"
         )
         df["fin_score"] = (
             self.params["roe"] * df["roe"]
