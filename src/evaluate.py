@@ -93,16 +93,6 @@ class Evaluate:
         total_pnl = final_value - initial_value
         return total_pnl
 
-    def get_annualized_return(self) -> float:
-        """
-        Calculate the annualized return.
-        Annualized Return = (1 + Total Return) ^ (1 / Number of Years) - 1
-        """
-        total_return = self.get_roi() / 100
-        num_years = (self.data.index[-1] - self.data.index[0]).days / 365.25
-        annualized_return = (1 + total_return) ** (1 / num_years) - 1
-        return annualized_return * 100
-
     def get_sharpe_ratio(self,
                          risk_free_rate_annual:
                          float = config["risk_free_rate_annual"]
@@ -138,7 +128,7 @@ class Evaluate:
         Calculate the Calmar ratio.
         Calmar Ratio = Annualized Return / Maximum Drawdown
         """
-        annualized_return = self.get_annualized_return() / 100
+        annualized_return = self.get_cagr() / 100
         max_drawdown = self.get_max_drawdown()
         calmar_ratio = annualized_return / abs(max_drawdown)
         return calmar_ratio
@@ -260,7 +250,8 @@ class Evaluate:
         """
         plt.figure()
         self.get_daily_returns()
-        self.data["daily_returns"].plot(title="Daily Returns")
+        self.data["daily_returns"].plot(title="Daily Returns",
+                                        color="#1f77b4")
         plt.xlabel("Date")
         plt.ylabel("Daily Returns")
         plt.tight_layout()
@@ -273,7 +264,8 @@ class Evaluate:
         """
         plt.figure()
         self.get_cumulative_returns()
-        self.data["cumulative_returns"].plot(title="Cumulative Returns")
+        self.data["cumulative_returns"].plot(title="Cumulative Returns",
+                                             color="#1f77b4")
         plt.xlabel("Date")
         plt.ylabel("Cumulative Returns")
         plt.tight_layout()
@@ -287,37 +279,27 @@ class Evaluate:
         rolling_max = self.data["total_assets"].cummax()
         drawdown = (self.data["total_assets"] - rolling_max) / rolling_max
         plt.figure()
-        drawdown.plot(title="Drawdown")
+        drawdown.plot(title="Drawdown",
+                      color="#1f77b4")
         plt.xlabel("Date")
         plt.ylabel("Drawdown")
         plt.tight_layout()
         plt.savefig(f"{result_dir}/drawdown.png")
         plt.close()
 
-    # def plot_cash_flow(self, result_dir: str) -> None:
-    #     """
-    #     Plot and save cash flow.
-    #     """
-    #     plt.figure()
-    #     self.get_cash_flow()
-    #     self.data["cash_flow"].plot(title="Cash Flow")
-    #     plt.xlabel("Date")
-    #     plt.ylabel("Cash Flow")
-    #     plt.tight_layout()
-    #     plt.savefig(f"{result_dir}/cash_flow.png")
-    #     plt.close()
-
     def plot_benchmark_comparison(self, benchmark_data: pd.DataFrame | None,
                                   result_dir: str) -> None:
         """
-        Plot and save benchmark comparison.
+        Plot and save benchmark comparison with less attractive color for the benchmark.
         """
         comparison_df = self.get_benchmark_comparison(benchmark_data)
         plt.figure()
         comparison_df[["cummulative_return", "cummulative_return_benchmark"]].plot(
-            title="Benchmark Comparison")
+            title="Benchmark Comparison",
+            color=["#1f77b4", "#ff7f0e"]
+        )
         plt.xlabel("Date")
-        plt.ylabel("Daily Returns")
+        plt.ylabel("Cumulative Returns")
         plt.legend(["Strategy", "Benchmark (default: VNINDEX)"])
         plt.grid()
         plt.tight_layout()
@@ -381,7 +363,6 @@ class Evaluate:
         evaluation_results = {
             "ROI": float(self.get_roi()),
             "Total P&L": float(self.get_total_pnl()),
-            "Annualized Return": float(self.get_annualized_return()),
             "Sharpe Ratio": float(self.get_sharpe_ratio()),
             "Sortino Ratio": float(self.get_sortino_ratio()),
             "Calmar Ratio": float(self.get_calmar_ratio()),
@@ -405,6 +386,23 @@ class Evaluate:
         Save the evaluation results to a JSON file in the specified directory.
         Export plots to the specified directory.
         """
+        plt.style.use(
+            "seaborn-v0_8-darkgrid")  # Professional-looking dark grid style
+
+        # Customizing color and aesthetics
+        plt.rcParams.update({
+            "axes.facecolor": "#F8F9FA",  # Light gray background
+            "axes.edgecolor": "#333333",
+            "axes.labelcolor": "#333333",
+            "xtick.color": "#333333",
+            "ytick.color": "#333333",
+            "grid.color": "#DDDDDD",
+            "lines.linewidth": 2,
+            "legend.frameon": False,
+            "font.size": 12,
+            "figure.figsize": (10, 6)
+        })
+
         self.save_evaluation_results(result_dir)
         self.plot_all(benchmark_data=None, result_dir=result_dir)
 
