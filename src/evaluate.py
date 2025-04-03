@@ -1,37 +1,17 @@
-from src.settings import config, logger
+from src.settings import config, logger, DATA_PATH
 from matplotlib import pyplot as plt
 from datetime import datetime
 import pandas as pd
 import json
 from typing import Dict, Any
-
-
-def get_vnindex_benchmark(start_date: datetime, end_date: datetime
-                          ) -> pd.DataFrame:
-    """
-    Get VNINDEX benchmark data from vnstock API.
-    """
-    from src.settings import vnstock
-    logger.debug(
-        f"Fetching VNINDEX benchmark data from {start_date} to {end_date}.")
-    vnindex = vnstock.quote.history(symbol="VNINDEX",
-                                    start=start_date.strftime("%Y-%m-%d"),
-                                    end=end_date.strftime("%Y-%m-%d"))
-    vnindex = vnindex[["time", "close"]].copy()
-    vnindex.rename(columns={
-        "time": "datetime",
-        "close": "total_assets"}, inplace=True)
-    vnindex["datetime"] = pd.to_datetime(vnindex["datetime"])
-    vnindex.set_index("datetime", inplace=True)
-    vnindex.sort_index(inplace=True)
-    logger.debug(
-        f"VNINDEX benchmark data fetched successfully with {len(vnindex)} rows.")
-    return vnindex
+import os
+import argparse
+from src.vnindex import get_vnindex_benchmark
 
 
 class Evaluate:
     """
-    Evaluate the performance of a trading strategy, comparing it 
+    Evaluate the performance of a trading strategy, comparing it
         to a benchmark, by default VNINDEX.
 
     The input data should be a DataFrame with the following columns:
@@ -314,8 +294,9 @@ class Evaluate:
         self.plot_daily_returns(result_dir)
         self.plot_cumulative_returns(result_dir)
         self.plot_drawdown(result_dir)
-        self.plot_cash_flow(result_dir)
-        self.plot_benchmark_comparison(benchmark_data, result_dir)
+        if self.name != "vnindex":
+            self.plot_cash_flow(result_dir)
+            self.plot_benchmark_comparison(benchmark_data, result_dir)
         logger.info(
             f"All evaluation plots saved to {result_dir}.")
 
@@ -368,8 +349,8 @@ class Evaluate:
             "Calmar Ratio": float(self.get_calmar_ratio()),
             "Max Drawdown": float(self.get_max_drawdown()),
             "CAGR": float(self.get_cagr()),
-            "Win Rate": float(self.get_win_rate()),
-            "Expected Return": float(self.get_expected_return()),
+            "Win Rate": float(self.get_win_rate()) if self.name != "vnindex" else None,
+            "Expected Return": float(self.get_expected_return()) if self.name != "vnindex" else None,
             "Volatility": float(self.get_volatility()),
             "Max Time to Recover": int(self.get_max_time_to_recover()),
         }
