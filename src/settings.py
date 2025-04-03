@@ -6,6 +6,8 @@ import logging
 import logging.config
 from vnstock import Vnstock
 import yaml
+import random
+import numpy as np
 
 # Load .env file
 env_path = Path(__file__).parent / ".env"
@@ -45,3 +47,8 @@ else:
 
 # Init Vnstock
 vnstock = Vnstock().stock(symbol="ACB", source="VCI")
+
+# Set random seed for reproducibility
+random_seed = config.get("random_seed", 42)
+random.seed(random_seed)
+np.random.seed(random_seed)

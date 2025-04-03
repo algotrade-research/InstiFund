@@ -234,9 +234,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Stocks Crawler for daily data")
     parser.add_argument("--start_date", type=str,
-                        help="Start date in YYYY-MM-DD format")
+                        help="Start date in YYYY-MM-DD format",
+                        default=config["data_collection"]["start_date"])
     parser.add_argument("--end_date", type=str,
-                        help="End date in YYYY-MM-DD format")
+                        help="End date in YYYY-MM-DD format",
+                        default=config["data_collection"]["end_date"])
     parser.add_argument("--action", type=str,
                         choices=["daily", "financial", "all"],
                         help="Action to perform: daily or financial or both",

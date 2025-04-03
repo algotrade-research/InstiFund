@@ -1,4 +1,4 @@
-from src.settings import config
+from src.settings import config, logger, DATA_PATH
 import os
 import requests
 from bs4 import BeautifulSoup
@@ -6,7 +6,6 @@ import time
 import unicodedata
 import json
 import argparse
-import yaml
 from tqdm import tqdm
 import pandas as pd
 from typing import Tuple
@@ -209,11 +208,12 @@ class VCBFCrawler():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--save_dir", type=str,
-                        default=os.getenv("DATA_PATH", "."))
+                        default=os.path.join(DATA_PATH, "VCBF"))
     parser.add_argument("--operation", type=str,
                         default="all")
     args = parser.parse_args()
-    save_dir = f"../../{args.save_dir}/VCBF"
+    save_dir = args.save_dir
+    logger.info(f"Save path: {save_dir}")
 
     crawler = VCBFCrawler()
     if not os.path.exists(save_dir):
