@@ -166,31 +166,41 @@ The result will be stored in the `<DATA_PATH>/backtest/out_sample` folder.
 
 ## In-sample Backtesting
 ### Stock Selection
-- Score of stock is calculated by the following formula:
+Score of a stock is calculated by the following formula:
+```math
+\text{score} = x_1 \cdot \text{institutional\_score} + x_2 \cdot \text{financial\_score}
+```
+
+The institutional score is calculated by the following formula:
 $$
-\text{score} = x_1 \cdot \text{institutional_score} + x_2 \cdot \text{financial_score}
+\text{institutional\_score} = x_3 \cdot \text{fund\_net\_buying} + x_4 \cdot \text{number\_fund\_holdings} + x_5 \cdot \text{net\_fund\_change}
 $$
 Where:
-- $x_1$ and $x_2$ are the weights of the institutional score and financial score respectively. The default values are 0.5 for both scores.
-- The institutional score is calculated by the following formula:
+- $\text{fund\_net\_buying}$ is the net buying of the fund in the month.
+- $\text{number\_fund\_holdings}$ is the number of funds holding the stock.
+- $\text{net\_fund\_change}$ is the net change of the fund in the month.
+
+The financial score is calculated by the following formula:
 $$
-\text{institutional_score} = \frac{\text{fund_net_buying}}{\text{number_fund_holdings}} + \frac{\text{net_fund_change}}{\text{number_fund_holdings}}
-$$
-Where:
-- $\text{fund_net_buying}$ is the net buying of the fund in the month.
-- $\text{number_fund_holdings}$ is the number of funds holding the stock.
-- $\text{net_fund_change}$ is the net change of the fund in the month.
-- The financial score is calculated by the following formula:
-$$
-\text{financial_score} = \frac{\text{roe}}{\text{debt_to_equity}} + \frac{\text{revenue_growth}}{\text{pe}}
+\text{financial\_score} = x_6 \cdot \text{roe}+ x_7 \cdot \text{debt\_to\_equity} + x_8 \cdot \text{revenue\_growth} + x_9 \cdot \text{pe}
 $$
 Where:
 - $\text{roe}$ is the return on equity.
-- $\text{debt_to_equity}$ is the debt to equity ratio.
-- $\text{revenue_growth}$ is the revenue growth rate.
+- $\text{debt\_to\_equity}$ is the debt to equity ratio.
+- $\text{revenue\_growth}$ is the revenue growth rate.
 - $\text{pe}$ is the price to earnings ratio.
 
-### Rebalancing
+The weights $x_1, x_2, \dots, x_9$ are the parameters that we want to optimize.
+
+### Rebalancing and Risk Management
+- Portfolio is rebalanced every month, at 20th of the month, when the new quarterly financial report is published, and new monthly open-end fund report is published (usually on the 8th of the month).
+- Rebalancing process takes 2 days.
+- On the first day, we sell all stocks in the portfolio to achieve 100% cash.
+- On the second day, we execute these steps:
+  1. Scoring and ranking the stocks based on the mentioned formula, and select the top 3 stocks with the highest score.
+  2. Depend on the scores, we distribute the amount of cash to buy each stocks. There are 3 options: `equal`, `linear`, `softmax`, this will also be optimized in the optimization step.
+  3. Buy the stocks with the allocated cash amount.
+- To manage the risk, we set a trailing stop loss and a take profit. These parameters are also optimized in the optimization step.
 
 ### Evaluation Metrics
 - Backtesting results are stored in the `<DATA_PATH>/backtest/` folder. 
@@ -202,6 +212,23 @@ Where:
   - Calmar ratio (CR)
   - Votality (Vol)
   - Max Time to Recover from a drawdown (MTR) in days
+
+### Parameters
+The default parameters are stored in the `config/config.yaml` file. 
+```yaml
+default_backtest_params:
+  institutional_weight: 0.6
+  take_profit: 0.325
+  trailing_stop_loss: 0.5
+  fund_net_buying: 0.35
+  number_fund_holdings: 0.45
+  roe: 0.3
+  revenue_growth: 0.1
+  pe: 0.4
+  stock_weight_option: "equal"
+```
+- `net_fund_change` is set so as to sum up to 1 with the other parameters in the institutional score.
+- `debt_to_equity` is set so as to sum up to 1 with the other parameters in the financial score.
 
 ### In-sample Backtesting Result
 - Table of the backtesting results, compare with VNINDEX benchmark from 2023-02-01 to 2024-01-31.
@@ -221,11 +248,30 @@ Where:
 ![Cash flow plot](doc/report/backtesting/in_sample/cash_flow.png)
 
 ## Optimization
-- Describe the Optimization step
-    - Optimization process/methods/library
-    - Parameters to optimize
-    - Hyper-parameter of the optimize process
-- Step 5 of the Nine-Step
+- Library: Optuna
+- Sampler: `TPESampler`
+- Number of trials: 5000
+- Optimization objective: $0.8 \cdot \text{SR} - 0.2 \cdot \text{MDD}$ in order to a high Sharpe ratio and a low maximum drawdown.
+- Optimization history 
+![Optimization history](doc/report/optimization/optimization_history.png)
+- Parameter importance plot
+![Parameter importance plot](doc/report/optimization/parameter_importance.png)
+- Optimized parameters: can be found in [params.json](doc/report/backtesting/optimized_in_sample/params.json) file.
+```json
+{
+    "institutional_weight": 0.1,
+    "take_profit": 0.25,
+    "trailing_stop_loss": 0.25,
+    "fund_net_buying": 0.2,
+    "number_fund_holdings": 0.5,
+    "roe": 0.5,
+    "revenue_growth": 0.05,
+    "pe": 0.2,
+    "number_of_stocks": 3,
+    "initial_balance": 1000000,
+    "stock_weight_option": "linear"
+}
+```
 
 ### Optimization Result
 - Table of the optimized backtesting results, compare with VNINDEX benchmark from 2023-02-01 to 2024-01-31.
@@ -245,10 +291,8 @@ Where:
 ![Cash flow plot](doc/report/backtesting/optimized_in_sample/cash_flow.png)
 
 ## Out-of-sample Backtesting
-- Describe the Out-of-sample Backtesting step
-    - Parameter
-    - Data
-- Step 6 of th Nine-Step
+- The out-of-sample period is from 2024-02-01 to 2025-01-31.
+- The out-of-sample backtesting process is the same as the in-sample backtesting process, but we use the optimized parameters from the optimization step.
 
 ### Out-of-sample Backtesting Result
 - Table of the backtesting results, compare with VNINDEX benchmark from 2024-02-01 to 2025-01-31.
