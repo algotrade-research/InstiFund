@@ -65,13 +65,30 @@ class StocksRanking:
                    "number_fund_holdings", "net_fund_change"]
         df[columns] = StocksRanking.normalize_columns(df, columns)
         # Calculate institutional score
-        net_fund_change_w = 1.0 - self.params["fund_net_buying"]
-        - self.params["number_fund_holdings"]
+        net_fund_change_w = 1.0 - \
+            self.params["fund_net_buying"] - \
+            self.params["number_fund_holdings"]
+        assert net_fund_change_w >= 0.0, (
+            f"Invalid weight for net fund change: {net_fund_change_w}"
+        )
         df["inst_score"] = (
             self.params["fund_net_buying"] * df["fund_net_buying"]
             + self.params["number_fund_holdings"] * df["number_fund_holdings"]
             + net_fund_change_w * df["net_fund_change"]
         ).fillna(0).clip(lower=0)
+        # log error if any score is greater than 1.0
+        if (df["inst_score"] > 1.0).any():
+            logger.error(
+                f"Invalid institutional score:\n{df[df['inst_score'] > 1.0][[
+                    'symbol', 'inst_score', 'fund_net_buying',
+                    'number_fund_holdings', 'net_fund_change'
+                ]].to_string()}"
+            )
+            logger.info(
+                f"Weights: {self.params['fund_net_buying']}, "
+                f"{self.params['number_fund_holdings']}, "
+                f"{net_fund_change_w}"
+            )
 
     def calculate_fin_score(self, df: pd.DataFrame) -> None:
         """
@@ -89,6 +106,9 @@ class StocksRanking:
         # Calculate financial score
         de_weight = 1.0 - self.params["roe"] - \
             self.params["revenue_growth"] - self.params["pe"]
+        assert de_weight >= 0.0, (
+            f"Invalid weight for debt-to-equity: {de_weight}"
+        )
         df["fin_score"] = (
             self.params["roe"] * df["roe"]
             + self.params["revenue_growth"] * df["revenue_growth"]
