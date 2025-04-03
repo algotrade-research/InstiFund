@@ -3,7 +3,7 @@
 ## Abstract
 Vietnamese open-end funds recently have seen significant growth in the number of people investing in them, especially after the introduction of [Fmarket](https://fmarket.vn). 
 Their performances are very persuasive, with many funds having a return of 20-30% per year. 
-In this project, I will use the VCBF open-end fund's financial portfolio to select stocks. I believe that the fund's financial portfolio can be used as a good indicator for stock selection. 
+In this project, I use the VCBF open-end fund's financial portfolio to select stocks. I believe that the fund's financial portfolio can be used as a good indicator for stock selection. 
 Each month, a list of 3 highest scored stocks will be selected based on the fund's financial portfolio and the stocks' financial ratios. 
 The stocks will be held for 1 month and then rebalanced. 
 The performance of the strategy will be compared with the benchmark index (VN-Index) to evaluate its effectiveness. 
@@ -150,7 +150,7 @@ The result will be stored in the `<DATA_PATH>/backtest/in_sample` folder.
 ### Optimization
 Run this command to start the optimization process. You can adjust the random seed by editing `random_seed` in the `config/config.yaml` file. The default random seed is 42.
 ```bash
-py -m src.optimize --n_trials 5000 
+python -m src.optimize --n_trials 5000 
 ```
 The optimization result will be stored in the `<DATA_PATH>/optimization` folder. And the optimized in-sample backtest result will be stored in the `<DATA_PATH>/backtest/optimized_in_sample` folder.
 This process will take about 1-2 hours to finish on a standard laptop.
@@ -158,7 +158,7 @@ This process will take about 1-2 hours to finish on a standard laptop.
 ### Out-of-sample Backtesting
 Run this command to start the out-of-sample backtesting process.
 ```bash
-py -m src.backtest --name out_sample
+python -m src.backtest --name out_sample
 ```
 The result will be stored in the `<DATA_PATH>/backtest/out_sample` folder.
 
@@ -172,11 +172,32 @@ The result will be stored in the `<DATA_PATH>/backtest/out_sample` folder.
     - Data
 - Step 4 of the Nine-Step
 
+- Backtesting results are stored in the `<DATA_PATH>/backtest/` folder. 
+- Used metrics to compare with VNINDEX are: 
+  - Compound annual growth rate (CAGR)
+  - Maximum drawdown (MDD)
+  - Sharpe ratio (SR)
+  - Sortino ratio (SoR)
+  - Calmar ratio (CR)
+  - Votality (Vol)
+  - Max Time to Recover from a drawdown (MTR) in days
 
 ### In-sample Backtesting Result
-- Brieftly shown the result: table, image, etc.
-- Has link to the In-sample Backtesting Report
-- [Backtesting report file](/doc/report/backtesting/backtesting-report.pdf)
+- Table of the backtesting results, compare with VNINDEX benchmark from 2023-02-01 to 2024-01-31.
+  
+| | CAGR | MDD | SR | SoR | CR | Vol | MTR |
+|---|---|---|---|---|---|---|---|
+| In-sample | 12.97% | -12.13% | 0.47 | 0.62 | 1.07 | 19.03% | 224 |
+| VNINDEX | 8.24% | -17.44% | 0.26 | 0.31 | 0.47 | 16.03% | 223 |
+
+- Cummulative return plot of initial backtesting results, along with VNINDEX benchmark.
+![Cummulative return plot of initial backtesting results, along with VNINDEX benchmark](doc/report/backtesting/in_sample/benchmark_comparison.png)
+- Maximum drawdown 
+![Maximum drawdown plot](doc/report/backtesting/in_sample/drawdown.png)
+- Daily return 
+![Daily return plot](doc/report/backtesting/in_sample/daily_returns.png)
+- Cash flow
+![Cash flow plot](doc/report/backtesting/in_sample/cash_flow.png)
 
 ## Optimization
 - Describe the Optimization step
@@ -186,8 +207,21 @@ The result will be stored in the `<DATA_PATH>/backtest/out_sample` folder.
 - Step 5 of the Nine-Step
 
 ### Optimization Result
-- Brieftly shown the result: table, image, etc.
-- Has link to the Optimization Report
+- Table of the optimized backtesting results, compare with VNINDEX benchmark from 2023-02-01 to 2024-01-31.
+  
+| | CAGR | MDD | SR | SoR | CR | Vol | MTR |
+|---|---|---|---|---|---|---|---|
+| Optimized In-sample | 39.31% | -8.36% | 1.97 | 3.15 | 4.70 | 14.68% | 203 |
+| VNINDEX | 8.24% | -17.44% | 0.26 | 0.31 | 0.47 | 16.03% | 223 |
+
+- Cummulative return plot of initial backtesting results, along with VNINDEX benchmark.
+![Cummulative return plot of initial backtesting results, along with VNINDEX benchmark](doc/report/backtesting/optimized_in_sample/benchmark_comparison.png)
+- Maximum drawdown
+![Maximum drawdown plot](doc/report/backtesting/optimized_in_sample/drawdown.png)
+- Daily return
+![Daily return plot](doc/report/backtesting/optimized_in_sample/daily_returns.png)
+- Cash flow
+![Cash flow plot](doc/report/backtesting/optimized_in_sample/cash_flow.png)
 
 ## Out-of-sample Backtesting
 - Describe the Out-of-sample Backtesting step
@@ -196,8 +230,21 @@ The result will be stored in the `<DATA_PATH>/backtest/out_sample` folder.
 - Step 6 of th Nine-Step
 
 ### Out-of-sample Backtesting Result
-- Brieftly shown the result: table, image, etc.
-- Has link to the Out-of-sample Backtesting Report
+- Table of the backtesting results, compare with VNINDEX benchmark from 2024-02-01 to 2025-01-31.
+
+| | CAGR | MDD | SR | SoR | CR | Vol | MTR |
+|---|---|---|---|---|---|---|---|---|
+| Out-of-sample | 28.94% | -11.57% | 1.37 | 2.01 | 2.50 | 16.68% | 208 |
+| VNINDEX | 8.01% | -8.94% | 0.27 | 0.34 | 0.90 | 13.70% | 223 |
+
+- Cummulative return plot of initial backtesting results, along with VNINDEX benchmark.
+![Out-of-sample Backtesting Result](doc/report/backtesting/out_sample/benchmark_comparison.png)
+- Maximum drawdown
+![Maximum drawdown plot](doc/report/backtesting/out_sample/drawdown.png)
+- Daily return
+![Daily return plot](doc/report/backtesting/out_sample/daily_returns.png)
+- Cash flow
+![Cash flow plot](doc/report/backtesting/out_sample/cash_flow.png)
 
 ## Paper Trading
 - Not yet implemented
