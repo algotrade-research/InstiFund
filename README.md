@@ -176,19 +176,19 @@ The institutional score is calculated by the following formula:
 \text{institutional\_score} = x_3 \cdot \text{fund\_net\_buying} + x_4 \cdot \text{number\_fund\_holdings} + x_5 \cdot \text{net\_fund\_change}
 ```
 Where:
-- $\text{fund\_net\_buying}$ is the net buying of the fund in the month.
-- $\text{number\_fund\_holdings}$ is the number of funds holding the stock.
-- $\text{net\_fund\_change}$ is the net change of the fund in the month.
+- `fund_net_buying` is the net buying of the fund in the month.
+- `number_fund_holdings` is the number of funds holding the stock.
+- `net_fund_change` is the net change of the fund in the month.
 
 The financial score is calculated by the following formula:
 ```math
 \text{financial\_score} = x_6 \cdot \text{roe}+ x_7 \cdot \text{debt\_to\_equity} + x_8 \cdot \text{revenue\_growth} + x_9 \cdot \text{pe}
 ```
 Where:
-- $\text{roe}$ is the return on equity.
-- $\text{debt\_to\_equity}$ is the debt to equity ratio.
-- $\text{revenue\_growth}$ is the revenue growth rate.
-- $\text{pe}$ is the price to earnings ratio.
+- `roe` is the return on equity.
+- `debt_to_equity` is the debt to equity ratio.
+- `revenue_growth` is the revenue growth rate.
+- `pe` is the price to earnings ratio.
 
 The weights $x_1, x_2, \dots, x_9$ are the parameters that we want to optimize.
 
