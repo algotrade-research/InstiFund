@@ -294,18 +294,18 @@ class Evaluate:
         plt.savefig(f"{result_dir}/drawdown.png")
         plt.close()
 
-    def plot_cash_flow(self, result_dir: str) -> None:
-        """
-        Plot and save cash flow.
-        """
-        plt.figure()
-        self.get_cash_flow()
-        self.data["cash_flow"].plot(title="Cash Flow")
-        plt.xlabel("Date")
-        plt.ylabel("Cash Flow")
-        plt.tight_layout()
-        plt.savefig(f"{result_dir}/cash_flow.png")
-        plt.close()
+    # def plot_cash_flow(self, result_dir: str) -> None:
+    #     """
+    #     Plot and save cash flow.
+    #     """
+    #     plt.figure()
+    #     self.get_cash_flow()
+    #     self.data["cash_flow"].plot(title="Cash Flow")
+    #     plt.xlabel("Date")
+    #     plt.ylabel("Cash Flow")
+    #     plt.tight_layout()
+    #     plt.savefig(f"{result_dir}/cash_flow.png")
+    #     plt.close()
 
     def plot_benchmark_comparison(self, benchmark_data: pd.DataFrame | None,
                                   result_dir: str) -> None:
@@ -336,6 +336,43 @@ class Evaluate:
         self.plot_benchmark_comparison(benchmark_data, result_dir)
         logger.info(
             f"All evaluation plots saved to {result_dir}.")
+
+    def plot_cash_flow(self, result_dir: str) -> None:
+        """
+        Plot and save a stacked band plot of cash and total assets value.
+        """
+        plt.figure(figsize=(10, 6))
+
+        # Ensure cash flow is calculated
+        self.get_cash_flow()
+
+        # Plot stacked band plot
+        plt.fill_between(
+            self.data.index,
+            self.data["cash"],
+            label="Cash",
+            color="skyblue",
+            alpha=0.7
+        )
+        plt.fill_between(
+            self.data.index,
+            self.data["total_assets"],
+            self.data["cash"],
+            label="Non-Cash Assets",
+            color="lightgreen",
+            alpha=0.7
+        )
+
+        # Add labels and title
+        plt.title("Cash and Total Assets Composition")
+        plt.xlabel("Date")
+        plt.ylabel("Value")
+        plt.legend(loc="upper left")
+        plt.tight_layout()
+
+        # Save the plot
+        plt.savefig(f"{result_dir}/cash_flow.png")
+        plt.close()
 
     def save_evaluation_results(self, result_dir: str) -> None:
         """

@@ -124,57 +124,6 @@ class Backtesting:
 
         return {symbol: weight for (symbol, _), weight in zip(ranked_stocks[:self.NUMBER_OF_STOCKS], weights)}
 
-    # def rebalance_portfolio(self):
-    #     """
-    #     Optimized rebalancing function.
-    #     """
-    #     ranked_stocks = StocksRanking(self.simulation.current_date.month,
-    #                                   self.simulation.current_date.year,
-    #                                   self.stocks,
-    #                                   self.params).get_ranking()
-    #     self.top_stocks = [symbol for symbol,
-    #                        _ in ranked_stocks[:self.NUMBER_OF_STOCKS]]
-    #     logger.info(f"{self.simulation.current_date.date()} "
-    #                 f"Top {self.NUMBER_OF_STOCKS} stocks for rebalancing: {self.top_stocks}")
-
-    #     # Step 1: Sell stocks not in top list
-    #     current_assets = list(self.portfolio.assets.keys())
-    #     assets_to_sell = [
-    #         asset for asset in current_assets if asset not in self.top_stocks]
-
-    #     for asset in assets_to_sell:
-    #         self.sell(asset, self.portfolio.assets[asset]['quantity'])
-
-    #     # Step 2: Allocate funds for buying
-    #     available_balance = self.last_total_value * 0.9
-    #     weights = self.get_weights(ranked_stocks, self.WEIGHTING_OPTION)
-
-    #     # Step 3: Fetch stock prices in a single loop
-    #     latest_price_cache = {symbol: self.simulation.get_last_available_price(symbol) * 1.01
-    #                           for symbol in self.top_stocks}
-
-    #     # Step 4: Buy or adjust holdings for top stocks
-    #     for symbol in self.top_stocks:
-    #         stock_price = latest_price_cache.get(symbol)
-    #         if not stock_price or stock_price <= 0:
-    #             logger.warning(f"Failed to get price for {symbol}. Skipping.")
-    #             continue
-
-    #         allocated_funds = available_balance * weights[symbol]
-    #         desired_quantity = min(
-    #             int(allocated_funds // stock_price), self.MAX_VOLUME)
-    #         current_quantity = self.portfolio.assets.get(
-    #             symbol, {}).get('quantity', 0)
-
-    #         if desired_quantity > current_quantity:
-    #             self.buy(symbol, desired_quantity - current_quantity)
-    #         elif desired_quantity < current_quantity:
-    #             self.sell(symbol, current_quantity - desired_quantity)
-
-    #     # Step 5: Check if rebalancing is complete
-    #     if self.is_matched_top_stocks():
-    #         self.need_rebalance = False
-
     def rebalance_portfolio(self):
         """
         Optimized rebalancing function with two-day separation.
