@@ -186,11 +186,28 @@ class Evaluate:
             # If no benchmark data is provided, use VNINDEX as default
             benchmark_data = get_vnindex_benchmark(
                 self.data.index[0], self.data.index[-1])
+            benchmark_data.set_index("datetime", inplace=True)
+            benchmark_data.sort_index(inplace=True)
+
+        # Ensure both DataFrames have datetime indices
+        if not pd.api.types.is_datetime64_any_dtype(self.data.index):
+            self.data.index = pd.to_datetime(self.data.index)
+        if not pd.api.types.is_datetime64_any_dtype(benchmark_data.index):
+            benchmark_data.index = pd.to_datetime(benchmark_data.index)
+
+        # Align indices of both DataFrames
+        benchmark_data = benchmark_data.reindex(
+            self.data.index, method='ffill').dropna()
 
         # Merge the two DataFrames on the datetime index
         comparison_df = pd.merge(self.data, benchmark_data,
                                  left_index=True, right_index=True,
                                  suffixes=('', '_benchmark'))
+
+        # Check if the merged DataFrame is empty
+        if comparison_df.empty:
+            raise ValueError(
+                "The merged DataFrame for benchmark comparison is empty. Check the input data.")
 
         # Calculate daily returns for both strategy and benchmark
         comparison_df["cummulative_return"] = (
@@ -226,14 +243,22 @@ class Evaluate:
 
     def plot_daily_returns(self, result_dir: str) -> None:
         """
-        Plot and save daily returns.
+        Plot and save daily returns as a distribution histogram with a mean line.
         """
         plt.figure()
         self.get_daily_returns()
-        self.data["daily_returns"].plot(title="Daily Returns",
-                                        color="#1f77b4")
-        plt.xlabel("Date")
-        plt.ylabel("Daily Returns")
+        daily_returns = self.data["daily_returns"]
+        daily_returns.hist(bins=50, color="#1f77b4", alpha=0.7)
+
+        # Add a mean line
+        mean_return = daily_returns.mean()
+        plt.axvline(mean_return, color="red", linestyle="dashed",
+                    linewidth=1.5, label=f"Mean: {mean_return:.2%}")
+
+        plt.title("Daily Returns Distribution")
+        plt.xlabel("Daily Returns")
+        plt.ylabel("Frequency")
+        plt.legend()
         plt.tight_layout()
         plt.savefig(f"{result_dir}/daily_returns.png")
         plt.close()
