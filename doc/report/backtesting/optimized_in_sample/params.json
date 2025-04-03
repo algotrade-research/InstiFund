@@ -1,0 +1,13 @@
+{
+    "institutional_weight": 0.1,
+    "take_profit": 0.25,
+    "trailing_stop_loss": 0.25,
+    "fund_net_buying": 0.2,
+    "number_fund_holdings": 0.5,
+    "roe": 0.5,
+    "revenue_growth": 0.05,
+    "pe": 0.2,
+    "number_of_stocks": 3,
+    "initial_balance": 1000000,
+    "stock_weight_option": "linear"
+}
