@@ -57,6 +57,13 @@ class Optimizer:
 
         params["institutional_weight"] = trial.suggest_float(
             "institutional_weight", 0.025, 0.975, step=0.025)
+        params["fund_net_buying"] = trial.suggest_float(
+            "fund_net_buying", 0.05, 0.9, step=0.025)
+        max_range = round(
+            1.0 - params["fund_net_buying"] - 0.025, 3)
+        params["number_fund_holdings"] = trial.suggest_float(
+            "number_fund_holdings", min(max_range, 0.05),
+            min(max_range, 0.9), step=0.025)
 
         params["roe"] = trial.suggest_float(
             "roe", 0.05, 0.5, step=0.025)
@@ -134,6 +141,8 @@ class Optimizer:
         fig2 = optuna_matplotlib.plot_param_importances(self.study)
         fig2.figure.savefig(os.path.join(output_dir, "param_importance.png"))
 
+        # Reset Matplotlib style to default
+        plt.style.use("default")
         logger.info(f"Optimization plots saved to {output_dir}")
 
 
