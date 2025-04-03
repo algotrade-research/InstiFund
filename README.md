@@ -7,18 +7,18 @@ In this project, I use the VCBF open-end fund's financial portfolio to select st
 Each month, a list of 3 highest scored stocks will be selected based on the fund's financial portfolio and the stocks' financial ratios. 
 The stocks will be held for 1 month and then rebalanced. 
 The performance of the strategy will be compared with the benchmark index (VN-Index) to evaluate its effectiveness. 
-The results show that the strategy outperforms the benchmark index with a return of 28.45% annually and a maximum drawdown of -11.57% in the out-of-sample period.
+The results show that the strategy outperforms the benchmark index with a return of 28.94% annually and a maximum drawdown of -11.57% in the out-of-sample period.
 
 ## Introduction
-- Briefly introduce the project.
-- Problem statement, research question or the hypothesis.
-- Method(s) to solve the problem
-- What are the results?
+Vietnamese open-end funds have recently gained popularity among investors, particularly following the launch of Fmarket. Many funds report annual returns of 20-30%, making them attractive investment vehicles. However, retail investors often face challenges in selecting individual stocks due to the complexity of financial analysis and market dynamics.
 
+This project aims to address this challenge by leveraging the VCBF open-end fund's financial portfolio as a key indicator for stock selection. The hypothesis is that stocks held by the fund represent high-quality investments, and by systematically selecting the best-performing stocks based on financial ratios, it is possible to generate superior returns compared to the market benchmark (VN-Index).
 
+The methodology involves a monthly selection of the top three stocks with the highest scores, determined through a combination of institutional and financial metrics. These stocks are held for one month before rebalancing. The strategy is backtested using historical data, and an optimization process is conducted using Optuna to fine-tune parameters for maximum performance.
 
-After optimization, the method yields 39.31% annually return, -8.35% maximum drawdown, and 1.97 Sharpe ratio in the in-sample period.
-For the out-of-sample period, the method yields 28.45% annual return, -8.35% maximum drawdown, and 1.97 Sharpe ratio.
+Results indicate that the strategy achieves an optimized annual return of 39.31% with a maximum drawdown of -8.35% and a Sharpe ratio of 1.97 during the in-sample period. For the out-of-sample period, the method maintains strong performance with a 28.94% annual return, -11.57% maximum drawdown, and a Sharpe ratio of 1.36, consistently outperforming the VN-Index.
+
+These findings suggest that incorporating institutional investment trends into a systematic trading strategy can be a viable approach for retail investors seeking to enhance portfolio returns.
 
 ## Trading (Algorithm) Hypotheses
 In addition to smart-beta strategy that use quantitative factors to select stocks, I also use the VCBF open-end fund's financial portfolio to select stocks. I believe that the fund's financial portfolio can be used as a good indicator for stock selection.
@@ -172,18 +172,18 @@ Score of a stock is calculated by the following formula:
 ```
 
 The institutional score is calculated by the following formula:
-$$
+```math
 \text{institutional\_score} = x_3 \cdot \text{fund\_net\_buying} + x_4 \cdot \text{number\_fund\_holdings} + x_5 \cdot \text{net\_fund\_change}
-$$
+```
 Where:
 - $\text{fund\_net\_buying}$ is the net buying of the fund in the month.
 - $\text{number\_fund\_holdings}$ is the number of funds holding the stock.
 - $\text{net\_fund\_change}$ is the net change of the fund in the month.
 
 The financial score is calculated by the following formula:
-$$
+```math
 \text{financial\_score} = x_6 \cdot \text{roe}+ x_7 \cdot \text{debt\_to\_equity} + x_8 \cdot \text{revenue\_growth} + x_9 \cdot \text{pe}
-$$
+```
 Where:
 - $\text{roe}$ is the return on equity.
 - $\text{debt\_to\_equity}$ is the debt to equity ratio.
@@ -255,7 +255,7 @@ default_backtest_params:
 - Optimization history 
 ![Optimization history](doc/report/optimization/optimization_history.png)
 - Parameter importance plot
-![Parameter importance plot](doc/report/optimization/parameter_importance.png)
+![Parameter importance plot](doc/report/optimization/param_importance.png)
 - Optimized parameters: can be found in [params.json](doc/report/backtesting/optimized_in_sample/params.json) file.
 ```json
 {
@@ -315,9 +315,9 @@ default_backtest_params:
 - Not yet implemented
 
 ## Conclusion
-- What is the conclusion?
-- Optional
-
+- The strategy outperforms the benchmark index with a return of 28.94% annually and a maximum drawdown of -11.5% in the out-of-sample period.
+- The high importance of revenue growth and institutional weight in the optimization process shows that these factors are considerable in stock selection.
+  
 ## Reference
 
 

@@ -1,1 +1,4 @@
 # Configuration Folder
+This folder contains two files:
+1. `logging.conf`: This file contains the logging configuration for the project. It defines the logging format, level, and handlers to be used for logging messages. The `logging.conf` file is used to set up the logging system for the project, allowing for easy tracking of events and errors during execution.
+2. `config.yaml`: This file contains the configuration settings for the project in YAML format. It includes settings for data paths, logging, and other parameters. The `config.py` file is used to load the settings from the `config.yaml` file and make them available for use in the project.
