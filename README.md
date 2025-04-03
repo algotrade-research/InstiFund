@@ -79,8 +79,6 @@ source venv/bin/activate # for Linux/MacOS
 pip install -r requirements.txt
 ```
 3. Create `.env` file in the root directory of the project and fill in the required information. The `.env` file is used to store environment variables that are used in the project. The following is an example of a `.env` file:
-```bash
-# Example .env file
 ```env
 DB_NAME=<database name>
 DB_USER=<database user name>
@@ -167,11 +165,34 @@ The result will be stored in the `<DATA_PATH>/backtest/out_sample` folder.
 - Read the `config/README.md` file for more details about the configuration file.
 
 ## In-sample Backtesting
-- Describe the In-sample Backtesting step
-    - Parameters
-    - Data
-- Step 4 of the Nine-Step
+### Stock Selection
+- Score of stock is calculated by the following formula:
+$$
+\text{score} = x_1 \cdot \text{institutional_score} + x_2 \cdot \text{financial_score}
+$$
+Where:
+- $x_1$ and $x_2$ are the weights of the institutional score and financial score respectively. The default values are 0.5 for both scores.
+- The institutional score is calculated by the following formula:
+$$
+\text{institutional_score} = \frac{\text{fund_net_buying}}{\text{number_fund_holdings}} + \frac{\text{net_fund_change}}{\text{number_fund_holdings}}
+$$
+Where:
+- $\text{fund_net_buying}$ is the net buying of the fund in the month.
+- $\text{number_fund_holdings}$ is the number of funds holding the stock.
+- $\text{net_fund_change}$ is the net change of the fund in the month.
+- The financial score is calculated by the following formula:
+$$
+\text{financial_score} = \frac{\text{roe}}{\text{debt_to_equity}} + \frac{\text{revenue_growth}}{\text{pe}}
+$$
+Where:
+- $\text{roe}$ is the return on equity.
+- $\text{debt_to_equity}$ is the debt to equity ratio.
+- $\text{revenue_growth}$ is the revenue growth rate.
+- $\text{pe}$ is the price to earnings ratio.
 
+### Rebalancing
+
+### Evaluation Metrics
 - Backtesting results are stored in the `<DATA_PATH>/backtest/` folder. 
 - Used metrics to compare with VNINDEX are: 
   - Compound annual growth rate (CAGR)
@@ -233,7 +254,7 @@ The result will be stored in the `<DATA_PATH>/backtest/out_sample` folder.
 - Table of the backtesting results, compare with VNINDEX benchmark from 2024-02-01 to 2025-01-31.
 
 | | CAGR | MDD | SR | SoR | CR | Vol | MTR |
-|---|---|---|---|---|---|---|---|---|
+|---|---|---|---|---|---|---|---|
 | Out-of-sample | 28.94% | -11.57% | 1.37 | 2.01 | 2.50 | 16.68% | 208 |
 | VNINDEX | 8.01% | -8.94% | 0.27 | 0.34 | 0.90 | 13.70% | 223 |
 
