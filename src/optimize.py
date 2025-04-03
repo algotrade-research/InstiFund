@@ -1,5 +1,4 @@
 import optuna.visualization.matplotlib as optuna_matplotlib
-from optuna.study import MaxTrialsCallback
 import os
 import matplotlib.pyplot as plt
 import optuna
@@ -131,18 +130,32 @@ class Optimizer:
         """
         if not self.study:
             raise ValueError("No study found. Run optimize() first.")
+        plt.style.use(
+            "seaborn-v0_8-darkgrid")  # Professional-looking dark grid style
+
+        # Customizing color and aesthetics
+        plt.rcParams.update({
+            "axes.facecolor": "#F8F9FA",  # Light gray background
+            "axes.edgecolor": "#333333",
+            "axes.labelcolor": "#333333",
+            "xtick.color": "#333333",
+            "ytick.color": "#333333",
+            "grid.color": "#DDDDDD",
+            "lines.linewidth": 2,
+            "legend.frameon": False,
+            "font.size": 12,
+            "figure.figsize": (10, 6)
+        })
 
         # Plot optimization history using Matplotlib
         fig1 = optuna_matplotlib.plot_optimization_history(self.study)
-        fig1.figure.savefig(os.path.join(
-            output_dir, "optimization_history.png"))
 
         # Plot parameter importance using Matplotlib
         fig2 = optuna_matplotlib.plot_param_importances(self.study)
-        fig2.figure.savefig(os.path.join(output_dir, "param_importance.png"))
 
-        # Reset Matplotlib style to default
-        plt.style.use("default")
+        fig1.figure.savefig(os.path.join(
+            output_dir, "optimization_history.png"))
+        fig2.figure.savefig(os.path.join(output_dir, "param_importance.png"))
         logger.info(f"Optimization plots saved to {output_dir}")
 
 
