@@ -7,7 +7,7 @@ In this project, I use the VCBF open-end fund's financial portfolio to select st
 Each month, a list of 3 highest scored stocks will be selected based on the fund's financial portfolio and the stocks' financial ratios. 
 The stocks will be held for 1 month and then rebalanced. 
 The performance of the strategy will be compared with the benchmark index (VN-Index) to evaluate its effectiveness. 
-The results show that the strategy outperforms the benchmark index with a return of 28.94% annually and a maximum drawdown of -11.57% in the out-of-sample period.
+The results show that the strategy outperforms the benchmark index with a ROI of 42.87% and a maximum drawdown of -15.35% in the out-of-sample period.
 
 ## Introduction
 Vietnamese open-end funds have recently gained popularity among investors, particularly following the launch of Fmarket. Many funds report annual returns of 20-30%, making them attractive investment vehicles. However, retail investors often face challenges in selecting individual stocks due to the complexity of financial analysis and market dynamics.
@@ -16,7 +16,7 @@ This project aims to address this challenge by leveraging the VCBF open-end fund
 
 The methodology involves a monthly selection of the top three stocks with the highest scores, determined through a combination of institutional and financial metrics. These stocks are held for one month before rebalancing. The strategy is backtested using historical data, and an optimization process is conducted using Optuna to fine-tune parameters for maximum performance.
 
-Results indicate that the strategy achieves an optimized annual return of 39.31% with a maximum drawdown of -8.35% and a Sharpe ratio of 1.97 during the in-sample period. For the out-of-sample period, the method maintains strong performance with a 28.94% annual return, -11.57% maximum drawdown, and a Sharpe ratio of 1.36, consistently outperforming the VN-Index.
+Results indicate that the strategy achieves an optimized annual return of 59.52% with a maximum drawdown of -11.14% and a Sharpe ratio of 2.08 during the in-sample period. For the out-of-sample period, the method maintains strong performance with a 42.87% annual return, -15.35% maximum drawdown, and a Sharpe ratio of 1.74, consistently outperforming the VN-Index.
 
 These findings suggest that incorporating institutional investment trends into a systematic trading strategy can be a viable approach for retail investors seeking to enhance portfolio returns.
 
