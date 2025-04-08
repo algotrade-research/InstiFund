@@ -218,14 +218,16 @@ The weights $x_1, x_2, \dots, x_9$ are the parameters that we want to optimize.
 ### Evaluation Metrics
 - Backtesting results are stored in the `<DATA_PATH>/backtest/` folder. 
 - Used metrics to compare with VNINDEX are: 
-  - Compound annual growth rate (CAGR)
+  - Return on Investment (ROI)
   - Maximum drawdown (MDD)
   - Sharpe ratio (SR)
   - Sortino ratio (SoR)
   - Calmar ratio (CR)
   - Votality (Vol)
   - Max Time to Recover from a drawdown (MTR) in days
-
+- Other metrics:
+  - Cumulative annual growth rate (CAGR)
+  - Win rate: the percentage of winning trades over total trades.
 ### Parameters
 The default parameters are stored in the `config/config.yaml` file. 
 ```yaml
@@ -246,11 +248,14 @@ default_backtest_params:
 ### In-sample Backtesting Result
 - Table of the backtesting results, compare with VNINDEX benchmark from 2023-02-01 to 2024-01-31.
   
-| | CAGR | MDD | SR | SoR | CR | Vol | MTR |
+| | ROI | MDD | SR | SoR | CR | Vol | MTR |
 |---|---|---|---|---|---|---|---|
-| In-sample | 12.97% | -12.13% | 0.47 | 0.62 | 1.07 | 19.03% | 224 |
+| In-sample | 12.88% | -12.13% | 0.47 | 0.62 | 1.07 | 19.03% | 224 |
 | VNINDEX | 8.24% | -17.44% | 0.26 | 0.31 | 0.47 | 16.03% | 223 |
 
+- Other metrics:
+  - CAGR: 12.97%
+  - Win rate: 47.22%
 - Cummulative return plot of initial backtesting results, along with VNINDEX benchmark.
 ![Cummulative return plot of initial backtesting results, along with VNINDEX benchmark](doc/report/backtesting/in_sample/benchmark_comparison.png)
 - Maximum drawdown 
@@ -289,11 +294,14 @@ default_backtest_params:
 ### Optimization Result
 - Table of the optimized backtesting results, compare with VNINDEX benchmark from 2023-02-01 to 2024-01-31.
   
-| | CAGR | MDD | SR | SoR | CR | Vol | MTR |
+| | ROI | MDD | SR | SoR | CR | Vol | MTR |
 |---|---|---|---|---|---|---|---|
-| Optimized In-sample | 39.31% | -8.36% | 1.97 | 3.15 | 4.70 | 14.68% | 203 |
+| Optimized In-sample | 59.52% | -11.14% | 2.08 | 2.88 | 5.39 | 21.02% | 186 |
 | VNINDEX | 8.24% | -17.44% | 0.26 | 0.31 | 0.47 | 16.03% | 223 |
 
+- Other metrics:
+  - CAGR: 59.98%
+  - Win rate: 61.11%
 - Cummulative return plot of initial backtesting results, along with VNINDEX benchmark.
 ![Cummulative return plot of initial backtesting results, along with VNINDEX benchmark](doc/report/backtesting/optimized_in_sample/benchmark_comparison.png)
 - Maximum drawdown
@@ -310,11 +318,14 @@ default_backtest_params:
 ### Out-of-sample Backtesting Result
 - Table of the backtesting results, compare with VNINDEX benchmark from 2024-02-01 to 2025-01-31.
 
-| | CAGR | MDD | SR | SoR | CR | Vol | MTR |
+| | ROI | MDD | SR | SoR | CR | Vol | MTR |
 |---|---|---|---|---|---|---|---|
-| Out-of-sample | 28.94% | -11.57% | 1.37 | 2.01 | 2.50 | 16.68% | 208 |
+| Out-of-sample | 42.87% | -15.35% | 1.74 | 2.39 | 2.86 | 19.43% | 194 |
 | VNINDEX | 8.01% | -8.94% | 0.27 | 0.34 | 0.90 | 13.70% | 223 |
 
+- Other metrics:
+  - CAGR: 44.05%
+  - Win rate: 66.67%
 - Cummulative return plot of initial backtesting results, along with VNINDEX benchmark.
 ![Out-of-sample Backtesting Result](doc/report/backtesting/out_sample/benchmark_comparison.png)
 - Maximum drawdown
