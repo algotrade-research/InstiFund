@@ -292,7 +292,8 @@ class Backtesting:
         :param result_dir: Directory to save evaluation results.
         """
         evaluation_data = pd.DataFrame(self.portfolio_statistics)
-        evaluator = Evaluate(evaluation_data, name="backtest")
+        evaluator = Evaluate(evaluation_data, "backtest",
+                             self.params["initial_balance"] * 1000)
         evaluator.evaluate(result_dir)
         logger.info(
             f"Results: {evaluator.quick_evaluate()}"

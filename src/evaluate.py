@@ -45,11 +45,20 @@ class Evaluate:
     - Benchmark comparison
     """
 
-    def __init__(self, data: pd.DataFrame, name: str = "benchmark") -> None:
+    def __init__(self, data: pd.DataFrame, name: str = "benchmark",
+                 initial_balance: float = 100000000.0) -> None:
+        """
+        Initialize the Evaluate class.
+
+        Args:
+            data (pd.DataFrame): Input data containing trading metrics.
+            name (str): Name of the evaluation (default: "benchmark").
+            initial_balance (float): Initial balance for the strategy (in VND).
+        """
         self.data = data
         self.name = name
-        self.data["datetime"] = pd.to_datetime(
-            self.data["datetime"])
+        self.initial_balance = initial_balance
+        self.data["datetime"] = pd.to_datetime(self.data["datetime"])
         self.data.set_index("datetime", inplace=True)
         self.data.sort_index(inplace=True)
 
@@ -295,17 +304,25 @@ class Evaluate:
     def plot_benchmark_comparison(self, benchmark_data: pd.DataFrame | None,
                                   result_dir: str) -> None:
         """
-        Plot and save benchmark comparison with less attractive color for the benchmark.
+        Plot and save benchmark comparison with true balance values.
         """
         comparison_df = self.get_benchmark_comparison(benchmark_data)
+
+        # Calculate true balance for strategy and benchmark
+        comparison_df["true_balance"] = self.initial_balance * \
+            (1 + comparison_df["cummulative_return"])
+        comparison_df["true_balance_benchmark"] = self.initial_balance * \
+            (1 + comparison_df["cummulative_return_benchmark"])
+
+        # Plot the true balance comparison
         plt.figure()
-        comparison_df[["cummulative_return", "cummulative_return_benchmark"]].plot(
-            title="Benchmark Comparison",
+        comparison_df[["true_balance", "true_balance_benchmark"]].plot(
+            title="NAV Chart",
             color=["#1f77b4", "#ff7f0e"]
         )
         plt.xlabel("Date")
-        plt.ylabel("Cumulative Returns")
-        plt.legend(["Strategy", "Benchmark (default: VNINDEX)"])
+        plt.ylabel("NAV")
+        plt.legend(["InstiFund", "VNINDEX"])
         plt.grid()
         plt.tight_layout()
         plt.savefig(f"{result_dir}/benchmark_comparison.png")
