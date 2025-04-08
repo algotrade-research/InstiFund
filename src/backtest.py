@@ -336,7 +336,8 @@ if __name__ == '__main__':
     parser.add_argument("--name", type=str, required=True,
                         help="Name for the backtest")
     args = parser.parse_args()
-    sample_type = args.name
+    sample_type = ("in_sample" if args.name == "optimized_in_sample"
+                   else args.name)
     if (sample_type not in config
         or config[sample_type]["start_date"] is None
             or config[sample_type]["end_date"] is None):
@@ -348,12 +349,12 @@ if __name__ == '__main__':
 
     assert end_date.day >= 20, "End date must be after the 20th of the month."
 
-    if args.name == "out_sample":
+    if args.name in ["out_sample", "optimized_in_sample"]:
+        params = config["default_backtest_params"]
         with open(os.path.join(
-            DATA_PATH, "backtest",
-            "optimized_in_sample", "params.json"), 'r'
+            DATA_PATH, "optimization", "best_params.json"), 'r'
         ) as f:
-            params = json.load(f)
+            params.update(json.load(f))
             logger.info(
                 f"Loaded optimized parameters for out_sample: {params}"
             )

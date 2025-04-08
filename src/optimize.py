@@ -9,6 +9,7 @@ import pandas as pd
 from typing import Dict, Any
 from datetime import datetime
 import argparse
+import json
 
 
 class Optimizer:
@@ -46,7 +47,7 @@ class Optimizer:
         """
         # Define the parameter search space
         params = config["default_backtest_params"]
-        params["n_stocks"] = self.n_stocks
+        params["number_of_stocks"] = self.n_stocks
         params["trailing_stop_loss"] = trial.suggest_float(
             "trailing_stop_loss", 0.05, 0.5, step=0.025)
         params["stock_weight_option"] = trial.suggest_categorical(
@@ -197,20 +198,27 @@ if __name__ == "__main__":
     optimizer.save_trials_data(output_dir)
     optimizer.plot_optimization_results(output_dir)
 
-    # Backtest with the best parameters
+    # Save the best parameters
     best_params = optimizer.study.best_params
-    params = config["default_backtest_params"]
-    params.update(best_params)
-    backtest = Backtesting(
-        start_date=start_date,
-        end_date=end_date,
-        params=params
-    )
-    backtest.run()
+    best_params_file = os.path.join(output_dir, "best_params.json")
+    with open(best_params_file, "w") as f:
+        json.dump(best_params, f, indent=4)
+    logger.info(f"Best parameters saved to {best_params_file}")
 
-    # Save the backtest results
-    optimized_result_dir = os.path.join(
-        DATA_PATH, "backtest", "optimized_in_sample")
-    os.makedirs(optimized_result_dir, exist_ok=True)
-    backtest.evaluate(result_dir=optimized_result_dir)
-    backtest.save_portfolio(result_dir=optimized_result_dir)
+    # Backtest with the best parameters
+    # best_params = optimizer.study.best_params
+    # params = config["default_backtest_params"]
+    # params.update(best_params)
+    # backtest = Backtesting(
+    #     start_date=start_date,
+    #     end_date=end_date,
+    #     params=params
+    # )
+    # backtest.run()
+
+    # # Save the backtest results
+    # optimized_result_dir = os.path.join(
+    #     DATA_PATH, "backtest", "optimized_in_sample")
+    # os.makedirs(optimized_result_dir, exist_ok=True)
+    # backtest.evaluate(result_dir=optimized_result_dir)
+    # backtest.save_portfolio(result_dir=optimized_result_dir)
