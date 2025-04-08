@@ -1,0 +1,11 @@
+{
+    "trailing_stop_loss": 0.3,
+    "stock_weight_option": "equal",
+    "take_profit": 0.375,
+    "institutional_weight": 0.47500000000000003,
+    "fund_net_buying": 0.22500000000000003,
+    "number_fund_holdings": 0.425,
+    "roe": 0.05,
+    "revenue_growth": 0.47500000000000003,
+    "pe": 0.22500000000000003
+}

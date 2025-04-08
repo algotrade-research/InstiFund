@@ -278,20 +278,18 @@ default_backtest_params:
 ![Optimization history](doc/report/optimization/optimization_history.png)
 - Parameter importance plot
 ![Parameter importance plot](doc/report/optimization/param_importance.png)
-- Optimized parameters: can be found in [params.json](doc/report/backtesting/optimized_in_sample/params.json) file.
+- Optimized parameters: can be found in [best_params.json](doc/report/optimization/best_params.json) file.
 ```json
 {
-    "institutional_weight": 0.1,
-    "take_profit": 0.25,
-    "trailing_stop_loss": 0.25,
-    "fund_net_buying": 0.2,
-    "number_fund_holdings": 0.5,
-    "roe": 0.5,
-    "revenue_growth": 0.05,
-    "pe": 0.2,
-    "number_of_stocks": 3,
-    "initial_balance": 1000000,
-    "stock_weight_option": "linear"
+    "trailing_stop_loss": 0.3,
+    "stock_weight_option": "equal",
+    "take_profit": 0.375,
+    "institutional_weight": 0.47500000000000003,
+    "fund_net_buying": 0.22500000000000003,
+    "number_fund_holdings": 0.425,
+    "roe": 0.05,
+    "revenue_growth": 0.47500000000000003,
+    "pe": 0.22500000000000003
 }
 ```
 
