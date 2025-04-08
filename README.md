@@ -72,7 +72,7 @@ source venv/bin/activate # for Linux/MacOS
 ```bash
 pip install -r requirements.txt
 ```
-3. Create `.env` file in the root directory of the project and fill in the required information. The `.env` file is used to store environment variables that are used in the project. The following is an example of a `.env` file:
+3. (OPTIONAL) Create `.env` file in the root directory of the project and fill in the required information. The `.env` file is used to store environment variables that are used in the project. The following is an example of a `.env` file:
 ```env
 DB_NAME=<database name>
 DB_USER=<database user name>
@@ -158,7 +158,7 @@ Run this command to start the optimization process. You can adjust the random se
 python -m src.optimize --n_trials 5000 
 ```
 The optimization result will be stored in the `<DATA_PATH>/optimization` folder. And the optimized in-sample backtest result will be stored in the `<DATA_PATH>/backtest/optimized_in_sample` folder.
-This process will take about 1-2 hours to finish on a standard laptop.
+This process will take about 1-2 hours to finish on a standard laptop. You can skip this step by copying the [best_params.json](doc/report/optimization/best_params.json) file to the `<DATA_PATH>/optimization` folder.
 
 After that, you can run the in-sample backtesting process again with the optimized parameters. 
 ```bash

@@ -1,13 +1,13 @@
 {
-    "ROI": 39.0301869655,
-    "Total P&L": 390301.86965500005,
-    "Sharpe Ratio": 1.9691982255742326,
-    "Sortino Ratio": 3.159997285362257,
-    "Calmar Ratio": 4.703223736992329,
-    "Max Drawdown": -0.08359041886419187,
-    "CAGR": 39.314444218719856,
+    "ROI": 59.51994714500003,
+    "Total P&L": 595199.4714500003,
+    "Sharpe Ratio": 2.081734456718166,
+    "Sortino Ratio": 2.8829159818537806,
+    "Calmar Ratio": 5.385705116189872,
+    "Max Drawdown": -0.11137328263478453,
+    "CAGR": 59.98236580930196,
     "Win Rate": 61.111111111111114,
-    "Expected Return": 1376798.5003788585,
-    "Volatility": 14.683049289637093,
-    "Max Time to Recover": 203
+    "Expected Return": 2140651.7070424394,
+    "Volatility": 21.021016656727603,
+    "Max Time to Recover": 186
 }
