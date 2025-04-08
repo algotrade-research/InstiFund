@@ -60,16 +60,10 @@ In addition to smart-beta strategy that use quantitative factors to select stock
 - Details of the scores calculation are described in the Backtesting section below.
 
 ## Implementation
-- Briefly describe the implemetation.
-    - How to set up the enviroment to run the source code and required steps to replicate the results
-    - Discuss the concrete implementation if there are any essential details
-    - How to run each step from `In-sample Backtesting`, Step 4 to `Out-of-sample Backtesting`, Step 6 (or `Paper Trading`, Step 7).
-    - How to change the algorithm configurations for different run.
-- Most important section and need the most details to correctly replicate the results.
 ### Environment Setup
 1. Set up python virtual environment
 ```bash
-python3 -m venv venv
+python -m venv venv
 source venv/bin/activate # for Linux/MacOS
 .\venv\Scripts\activate.bat # for Windows command line
 .\venv\Scripts\Activate.ps1 # for Windows PowerShell
@@ -89,7 +83,20 @@ DATA_PATH=<path to the data folder of your choice, if not specified, the default
 ```
 The `DATA_PATH` variable is used to specify the path to the data folder where the input data is stored. The other variables are used to connect to the database.
 
+**Note:** Skip this step if you decide to use the provided data files on Google Drive (option 1).
+
 ### Data Collection
+#### Option 1. Download from Google Drive
+You can skip this step by download the necessary data files from [Google Drive](https://drive.google.com/drive/folders/1kdCQ7sQJIKiBMWDF37x5PflQ2gAejmDs?usp=sharing) and put them in the `data` folder.
+- The data files are stored in the `data` folder. The folder structure is as follows:
+```
+data 
+├── VCBF
+│   └── fund_portfolios.csv
+├── financial_data.csv
+├── daily_data.csv
+```
+#### Option 2. Run codes to collect data
 1. Retrieve VCBF open-end fund financial portfolio 
 In the root directory of the project, run the following command. The process will take about 7-10 minutes to finish.
 ```bash
