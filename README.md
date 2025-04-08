@@ -160,6 +160,12 @@ python -m src.optimize --n_trials 5000
 The optimization result will be stored in the `<DATA_PATH>/optimization` folder. And the optimized in-sample backtest result will be stored in the `<DATA_PATH>/backtest/optimized_in_sample` folder.
 This process will take about 1-2 hours to finish on a standard laptop.
 
+After that, you can run the in-sample backtesting process again with the optimized parameters. 
+```bash
+python -m src.backtest --name optimized_in_sample
+```
+The result will be stored in the `<DATA_PATH>/backtest/optimized_in_sample` folder.
+
 ### Out-of-sample Backtesting
 Run this command to start the out-of-sample backtesting process.
 ```bash
@@ -318,13 +324,6 @@ default_backtest_params:
 - Cash flow
 ![Cash flow plot](doc/report/backtesting/out_sample/cash_flow.png)
 
-## Paper Trading
-- Not yet implemented
 
-## Conclusion
-- The strategy outperforms the benchmark index with a return of 28.94% annually and a maximum drawdown of -11.5% in the out-of-sample period.
-- The high importance of revenue growth and institutional weight in the optimization process shows that these factors are considerable in stock selection.
-  
-## Reference
 
 
