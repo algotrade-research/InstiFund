@@ -269,7 +269,11 @@ default_backtest_params:
 - Library: Optuna
 - Sampler: `TPESampler`
 - Number of trials: 5000
-- Optimization objective: $0.8 \cdot \text{SR} - 0.2 \cdot \text{MDD}$ in order to a high Sharpe ratio and a low maximum drawdown.
+- Optimization objective: $0.8 \cdot \text{SR\_score} + 0.2 \cdot \text{MDD\_score}$ in order to a high Sharpe ratio and a low maximum drawdown. Where:
+  - `SR_score` varies from 0 to 1 as SR varies from 0 to 3.0.
+  - `MDD_score` varies from 0 to 1 as MDD varies from -20% to -5%.
+  - Check out [optimize.py](src/optimize.py) for more details.
+
 - Optimization history 
 ![Optimization history](doc/report/optimization/optimization_history.png)
 - Parameter importance plot
