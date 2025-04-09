@@ -118,7 +118,7 @@ VCBF-BCF,2023-01-01,ACB,504488.0,26050.0,13141912400.0,0.0352110336932618
 If you have access to Algotrade internship database, you can use the following command to retrieve the data. 
 
 ```bash
-python -m src.stocks_crawler 
+python -m src.crawler.stocks_crawler 
 ```
 
 The data time range is configured in the `config/config.yaml` file. The default time range is from 2022-01-01 to 2025-01-31. You can adjust the time range by changing the `start_date` and `end_date` parameters of `data_collection` in the `config/config.yaml` file.
