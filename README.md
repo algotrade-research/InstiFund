@@ -24,7 +24,10 @@ Results indicate that the strategy achieves an optimized annual return of 59.52%
 These findings suggest that incorporating institutional investment trends into a systematic trading strategy can be a viable approach for retail investors seeking to enhance portfolio returns.
 
 ## Trading (Algorithm) Hypotheses
-In addition to smart-beta strategy that use quantitative factors to select stocks, I also use the VCBF open-end fund's financial portfolio to select stocks. I believe that the fund's financial portfolio can be used as a good indicator for stock selection.
+In addition to smart-beta strategy that use quantitative factors to select stocks, I also use the VCBF open-end fund's financial portfolio to select stocks. I believe that: 
+- Open-end funds’ decision based on long-term growth possibility.
+- We can aggregate financial portfolios of open-end funds to make our decisions.
+- The reported decisions of the last quarter show the funds’ vision of the market in the next several quarters.
 
 ## Data
 - Data source: Algotrade internship database, [VCBF](https://vcbf.com.vn/), [VCI using Vnstock library](https://github.com/thinh-vu/vnstock)
