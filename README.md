@@ -1,6 +1,7 @@
 ![Static Badge](https://img.shields.io/badge/PLUTUS-Compliance_Score_75%25-green)
 
-# Plutus Project Template
+# InstiFund
+> Select stocks based on Institutional Investment Trends and Fundamental Analysis
 
 ## Abstract
 Vietnamese open-end funds recently have seen significant growth in the number of people investing in them, especially after the introduction of [Fmarket](https://fmarket.vn). 
