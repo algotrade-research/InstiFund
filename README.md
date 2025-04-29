@@ -1,4 +1,5 @@
 ![Static Badge](https://img.shields.io/badge/PLUTUS-80%25-darkgreen)
+![Static Badge](https://img.shields.io/badge/PLUTUS-Sample-darkblue)
 
 # InstiFund
 > Select stocks based on Institutional Investment Trends and Fundamental Analysis
